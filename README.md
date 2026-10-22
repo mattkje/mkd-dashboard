@@ -131,7 +131,7 @@ App on another server, e.g. over Tailscale:
 | `path` | Optional path appended to the link, e.g. `/web` |
 | `url` | Full URL (external apps, replaces `port`/`scheme`) |
 | `icon` | Name from [dashboard-icons](https://github.com/homarr-labs/dashboard-icons) (e.g. `gitea`), or an image URL. Falls back to a letter |
-| `checkUrl` | Override the URL used for the status check |
+| `checkUrl` | Override the URL used for the status check. `tcp://host:port` only checks that the port accepts connections, for apps that don't speak HTTP (e.g. a Minecraft server) |
 | `service` | systemd unit for a local app, e.g. `gitea` or `gitea.service`. Enables service controls and logs. Re-run `install.sh` after changing it |
 
 An app counts as "up" if it returns any HTTP response (including 401 or a redirect).

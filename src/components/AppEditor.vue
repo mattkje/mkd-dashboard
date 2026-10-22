@@ -104,7 +104,7 @@ function save() {
 
         <button v-if="!advanced" type="button" class="link small" @click="advanced = true">More options</button>
         <label v-else>Status check URL
-          <input v-model="form.checkUrl" class="input" placeholder="Defaults to the app's own address">
+          <input v-model="form.checkUrl" class="input" placeholder="Defaults to the app's own address (tcp://host:port for non-web apps)">
         </label>
 
         <p v-if="error" class="error-text">{{ error }}</p>

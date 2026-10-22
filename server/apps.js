@@ -1,6 +1,7 @@
 // Apps from apps.json: up/down checks, and the systemd units behind local apps.
 const http = require('node:http');
 const https = require('node:https');
+const net = require('node:net');
 const fs = require('node:fs');
 const path = require('node:path');
 const { HttpError, readJson, run } = require('./http');
@@ -68,7 +69,7 @@ function cleanApp(raw, where) {
     throw new HttpError(400, `${app.name}: needs a port (1-65535) or a url`);
   }
   if (app.scheme && !['http', 'https'].includes(app.scheme)) throw new HttpError(400, `${app.name}: scheme must be http or https`);
-  if (app.checkUrl && !/^https?:\/\/\S+$/.test(app.checkUrl)) throw new HttpError(400, `${app.name}: checkUrl must be a full URL`);
+  if (app.checkUrl && !/^(https?|tcp):\/\/\S+$/.test(app.checkUrl)) throw new HttpError(400, `${app.name}: checkUrl must be a full URL`);
   if (app.service && !UNIT_PATTERN.test(app.service)) throw new HttpError(400, `${app.name}: invalid service name`);
   return app;
 }
@@ -120,6 +121,7 @@ function checkTarget(app) {
 }
 
 // Any HTTP response (including 401/403/redirects) means the app is up.
+// tcp://host:port only checks that the port accepts connections, for apps that don't speak HTTP.
 function probe(url) {
   return new Promise((resolve) => {
     const started = Date.now();
@@ -128,6 +130,16 @@ function probe(url) {
       target = new URL(url);
     } catch {
       return resolve({ up: false, error: 'invalid url' });
+    }
+    if (target.protocol === 'tcp:') {
+      const socket = net.connect({ host: target.hostname, port: Number(target.port), timeout: CHECK_TIMEOUT_MS });
+      socket.on('connect', () => {
+        socket.destroy();
+        resolve({ up: true, ms: Date.now() - started });
+      });
+      socket.on('timeout', () => socket.destroy(new Error('timeout')));
+      socket.on('error', (err) => resolve({ up: false, error: err.code || err.message }));
+      return;
     }
     const client = target.protocol === 'https:' ? https : http;
     const req = client.request(
