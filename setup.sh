@@ -23,22 +23,22 @@ has() { command -v "$1" >/dev/null 2>&1; }
 if [ -r /dev/tty ] && [ -w /dev/tty ]; then TTY=/dev/tty; else TTY=; fi
 
 ask() { # ask VAR "Question" "default"
-  local answer=''
+  local _reply='' # not named like any caller's variable, or printf -v would set this local
   if [ -n "$TTY" ]; then
     printf '%s%s: ' "$2" "${3:+ [$3]}" > "$TTY"
-    IFS= read -r answer < "$TTY" || true
+    IFS= read -r _reply < "$TTY" || true
   fi
-  printf -v "$1" '%s' "${answer:-$3}"
+  printf -v "$1" '%s' "${_reply:-$3}"
 }
 
 ask_secret() { # ask_secret VAR "Question"  (empty answer keeps VAR as it is)
-  local answer=''
+  local _reply=''
   if [ -n "$TTY" ]; then
     printf '%s: ' "$2" > "$TTY"
-    IFS= read -rs answer < "$TTY" || true
+    IFS= read -rs _reply < "$TTY" || true
     printf '\n' > "$TTY"
   fi
-  if [ -n "$answer" ]; then printf -v "$1" '%s' "$answer"; fi
+  if [ -n "$_reply" ]; then printf -v "$1" '%s' "$_reply"; fi
 }
 
 confirm() { # confirm "Question" y|n
