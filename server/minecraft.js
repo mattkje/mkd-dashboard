@@ -120,15 +120,27 @@ function rconPacket(id, type, body) {
   return out;
 }
 
-// Long replies arrive split over several packets, so collect until the server goes quiet.
-async function rcon(command) {
-  if (!enabled) throw new HttpError(400, 'RCON is not set up (MINECRAFT_RCON_PASSWORD)');
-  let authed = false;
+// The server collects the replies of all RCON connections in one shared buffer, so commands that
+// run at the same time get each other's output. One command at a time, then.
+let queue = Promise.resolve();
+
+function rcon(command) {
+  if (!enabled) return Promise.reject(new HttpError(400, 'RCON is not set up (MINECRAFT_RCON_PASSWORD)'));
+  const result = queue.then(() => rconNow(command));
+  queue = result.catch(() => {});
+  return result;
+}
+
+// The command goes out only after the login reply: the server reads one packet per network read
+// and drops the connection when two arrive together. Long replies arrive split over several
+// packets, so collect until the server goes quiet.
+function rconNow(command) {
+  let socket;
   let reply = '';
   let quiet;
-  return exchange(RCON_PORT, (socket) => {
+  return exchange(RCON_PORT, (connected) => {
+    socket = connected;
     socket.write(rconPacket(1, AUTH, RCON_PASSWORD));
-    socket.write(rconPacket(2, COMMAND, command));
   }, (buffer, finish) => {
     while (buffer.length >= 4 && buffer.length >= 4 + buffer.readInt32LE(0)) {
       const length = buffer.readInt32LE(0);
@@ -136,8 +148,8 @@ async function rcon(command) {
       const body = buffer.subarray(12, 4 + length - 2).toString('utf8');
       buffer = buffer.subarray(4 + length);
       if (id === -1) throw new HttpError(502, 'RCON password was rejected');
-      if (id === 1) authed = true;
-      if (id === 2 && authed) {
+      if (id === 1) socket.write(rconPacket(2, COMMAND, command));
+      if (id === 2) {
         reply += body;
         clearTimeout(quiet);
         quiet = setTimeout(() => finish(plain(reply)), 150);
@@ -169,7 +181,7 @@ async function overview() {
     rconError: enabled && players.status === 'rejected' ? players.reason.message : null,
     players: value(players, names),
     whitelist: value(whitelist, names),
-    banned: value(banned, (reply) => reply.split('\n').slice(1).map((line) => line.split(' was banned')[0].trim()).filter(Boolean)),
+    banned: value(banned, (reply) => [...reply.matchAll(/(\w{1,16}) was banned by/g)].map((m) => m[1])),
   };
 }
 
