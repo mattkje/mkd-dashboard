@@ -64,7 +64,7 @@ for group in systemd-journal docker; do
   fi
 done
 
-install -m 0755 -o root -g root "$APP_DIR/deploy/mkd-dashboard-helper" "$HELPER"
+install -D -m 0755 -o root -g root "$APP_DIR/deploy/mkd-dashboard-helper" "$HELPER"
 
 # apps.json is not in git; start from the example on a fresh checkout.
 if [ ! -f "$APP_DIR/apps.json" ]; then
