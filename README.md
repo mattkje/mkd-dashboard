@@ -152,16 +152,6 @@ An app counts as "up" if it returns any HTTP response (including 401 or a redire
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | unset (Telegram alerts off) |
 | `DOCKER`, `PYTHON`, `TMUX_BIN` | `docker`, `python3`, `tmux` |
 | `SYSTEMCTL`, `JOURNALCTL`, `HELPER` | real tools; development fakes in `dev/` |
-| `MINECRAFT_RCON_PASSWORD` | unset (Minecraft page hidden). See [Minecraft](#minecraft) |
-| `MINECRAFT_HOST`, `MINECRAFT_PORT`, `MINECRAFT_RCON_PORT`, `MINECRAFT_SERVICE` | `127.0.0.1`, `25565`, `25575`, `minecraft` |
-
-## Minecraft
-
-A Minecraft page (status, players, whitelist, bans, world actions and a live console) appears once `MINECRAFT_RCON_PASSWORD` is set:
-
-1. In the server's `server.properties`, set `enable-rcon=true` and `rcon.password=` to a long random password, then restart the server. RCON is unencrypted, so keep `rcon.port` (25575) closed to the internet.
-2. Add `MINECRAFT_RCON_PASSWORD=<the same password>` to `/etc/mkd-dashboard.env` and `sudo systemctl restart mkd-dashboard`.
-3. For start/stop and the console, add the server to `apps.json` with `"service": "minecraft"` (and `"checkUrl": "tcp://127.0.0.1:25565"`, since it doesn't speak HTTP), then re-run `deploy/install.sh`.
 
 ## Private apps on other servers
 

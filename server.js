@@ -21,7 +21,6 @@ const monitor = require('./server/monitor');
 const alerts = require('./server/alerts');
 const jobs = require('./server/jobs');
 const updates = require('./server/updates');
-const minecraft = require('./server/minecraft');
 const { HttpError, sendJson } = require('./server/http');
 
 const PORT = Number(process.env.PORT) || 8090;
@@ -91,19 +90,13 @@ const routes = [
     req, param(url, 'path'), param(url, 'name'), param(url, 'overwrite') === '1',
   )],
 
-  ['GET', /^\/api\/minecraft$/, () => minecraft.overview()],
-  ['POST', /^\/api\/minecraft\/command$/, (req) => minecraft.command(req)],
-
   ['GET', /^\/api\/terminal\/sessions$/, () => terminal.sessions()],
   ['POST', /^\/api\/terminal\/sessions\/([\w.-]+)\/kill$/, (req, res, [name]) => terminal.killSession(name)],
 ];
 
 async function handleApi(req, res, url) {
   const { pathname } = url;
-  if (pathname === '/api/session') {
-    const authed = auth.isAuthed(req);
-    return sendJson(res, 200, { enabled: auth.enabled, authed, minecraft: authed && minecraft.enabled });
-  }
+  if (pathname === '/api/session') return sendJson(res, 200, { enabled: auth.enabled, authed: auth.isAuthed(req) });
 
   // Custom header blocks cross-site form posts (CSRF) on top of the SameSite cookie.
   if (req.method === 'POST' && req.headers['x-mkd'] !== '1') throw new HttpError(403, 'missing header');

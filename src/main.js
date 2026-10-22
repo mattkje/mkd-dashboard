@@ -12,7 +12,6 @@ const router = createRouter({
     { path: '/updates', component: () => import('./views/UpdatesView.vue'), meta: { title: 'Updates' } },
     { path: '/docker', component: () => import('./views/DockerView.vue'), meta: { title: 'Docker' } },
     { path: '/files', component: () => import('./views/FilesView.vue'), meta: { title: 'Files' } },
-    { path: '/minecraft', component: () => import('./views/MinecraftView.vue'), meta: { title: 'Minecraft' } },
     { path: '/terminal', component: () => import('./views/TerminalView.vue'), meta: { title: 'Terminal' } },
     { path: '/:rest(.*)*', redirect: '/' },
   ],

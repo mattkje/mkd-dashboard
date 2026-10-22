@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, watch } from 'vue';
+import { onMounted, watch } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
 import LoginView from './views/LoginView.vue';
 import LogsDialog from './components/LogsDialog.vue';
@@ -17,11 +17,7 @@ const NAV = [
   { to: '/docker', label: 'Docker', icon: 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8' },
   { to: '/files', label: 'Files', icon: 'M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z' },
   { to: '/terminal', label: 'Terminal', icon: 'M4 5h16v14H4zM8 10l3 2-3 2M13 15h3' },
-  { to: '/minecraft', label: 'Minecraft', icon: 'M4 4h16v16H4zM8 8h3v3H8zM13 8h3v3h-3zM10 11h4v5h-1.5v-2h-1v2H10z', feature: 'minecraft' },
 ];
-
-// Pages for optional features only show when the server has them set up.
-const nav = computed(() => NAV.filter((item) => !item.feature || state.session[item.feature]));
 
 const THEME_ICONS = {
   system: 'M4 5h16v11H4zM9 20h6M12 16v4',
@@ -40,8 +36,6 @@ async function signOut() {
 // For the title in the header and the updates badge; the Apps and Updates pages keep them fresh.
 watch(() => state.session.authed, async (authed) => {
   if (!authed) return;
-  // Signing in only reports success; the session also says which optional pages exist.
-  Object.assign(state.session, await getJson('/api/session').catch(() => ({})));
   if (!state.config) state.config = await getJson('/api/config').catch(() => null);
   const updates = await getJson('/api/updates').catch(() => null);
   if (updates) state.updates = updates.sources.reduce((sum, s) => sum + s.items.length, 0);
@@ -68,7 +62,7 @@ onMounted(async () => {
         <RouterLink to="/" class="brand">{{ state.config?.title ?? 'MKD' }}</RouterLink>
         <!-- On phones this becomes a tab bar fixed to the bottom of the screen. -->
         <nav class="tabs">
-          <RouterLink v-for="item in nav" :key="item.to" :to="item.to">
+          <RouterLink v-for="item in NAV" :key="item.to" :to="item.to">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="item.icon"/></svg>
             <span>{{ item.label }}</span>
             <b v-if="item.to === '/updates' && state.updates" class="badge">{{ state.updates }}</b>
