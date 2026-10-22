@@ -1,7 +1,8 @@
 <script setup>
 import { nextTick, ref, watch } from 'vue';
 import { getJson } from '../api.js';
-import { lockedOut, state } from '../store.js';
+import { streamText } from '../logStream.js';
+import { state } from '../store.js';
 
 const TEXT_LIMIT = 2 * 1024 * 1024;
 
@@ -46,17 +47,10 @@ async function follow() {
   const controller = new AbortController();
   stream = controller;
   try {
-    const params = new URLSearchParams({ lines: lines.value, follow: '1' });
-    const res = await fetch(`${state.logs.url}?${params}`, { signal: controller.signal });
-    if (res.status === 401) return lockedOut();
-    if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || res.statusText);
-    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
+    await streamText(state.logs.url, { lines: lines.value }, controller.signal, (value) => {
       text.value = (text.value + value).slice(-TEXT_LIMIT);
       scrollDown(false);
-    }
+    });
   } catch (err) {
     if (err.name !== 'AbortError') error.value = err.message;
   } finally {
