@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# The root actions the dashboard may run, and nothing else. install.sh copies this
+# to /usr/local/libexec/mkd-dashboard-helper (root-owned) and lets the dashboard
+# user run it through sudo without a password. It takes no free-form input.
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+has() { command -v "$1" >/dev/null; }
+
+case "${1:-}" in
+  updates-refresh)
+    apt-get update
+    if has fwupdmgr; then fwupdmgr refresh --force || true; fi
+    ;;
+  # Keep locally changed config files; take the package default for untouched ones.
+  updates-install) apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade ;;
+  snap-refresh) snap refresh ;;
+  flatpak-update) flatpak update -y --noninteractive ;;
+  firmware-update) fwupdmgr update -y --no-reboot-check ;;
+  # After the dashboard updated itself.
+  dashboard-restart) systemctl restart mkd-dashboard.service ;;
+  reboot) systemctl reboot ;;
+  poweroff) systemctl poweroff ;;
+  *)
+    echo "usage: $0 updates-refresh|updates-install|snap-refresh|flatpak-update|firmware-update|dashboard-restart|reboot|poweroff" >&2
+    exit 2
+    ;;
+esac

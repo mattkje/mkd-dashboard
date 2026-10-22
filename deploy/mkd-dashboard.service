@@ -1,0 +1,23 @@
+# Template: deploy/install.sh fills in @APP_DIR@, @NODE@ and @USER@.
+[Unit]
+Description=MKD dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@USER@
+WorkingDirectory=@APP_DIR@
+ExecStart=@NODE@ server.js
+Environment=PORT=8090
+Environment=HOST=127.0.0.1
+EnvironmentFile=/etc/mkd-dashboard.env
+# Login sessions are kept in /var/lib/mkd-dashboard (STATE_DIRECTORY).
+StateDirectory=mkd-dashboard
+StateDirectoryMode=0700
+# Only stop the server itself: tmux sessions (web terminals) and running apt jobs survive a
+# restart of the dashboard. Without tmux, terminals end with the connection anyway.
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

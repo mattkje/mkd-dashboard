@@ -1,0 +1,41 @@
+{
+  "title": "Home lab",
+  "groups": [
+    {
+      "name": "This server",
+      "apps": [
+        {
+          "name": "Gitea",
+          "description": "Git hosting",
+          "port": 3000,
+          "icon": "gitea",
+          "service": "gitea"
+        },
+        {
+          "name": "Jellyfin",
+          "description": "Media server",
+          "port": 8096,
+          "icon": "jellyfin",
+          "service": "jellyfin"
+        },
+        {
+          "name": "Nextcloud",
+          "description": "Files & sync",
+          "port": 8080,
+          "icon": "nextcloud"
+        }
+      ]
+    },
+    {
+      "name": "Other servers",
+      "apps": [
+        {
+          "name": "Grafana",
+          "description": "Dashboards",
+          "url": "https://other-server.${TAILNET}:3000",
+          "icon": "grafana"
+        }
+      ]
+    }
+  ]
+}

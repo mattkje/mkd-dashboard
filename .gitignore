@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.state/
+.DS_Store
+
+# Your own setup, not part of the project.
+apps.json
+apps.json.bak
+.env
+/env
+/public/icons/
+/deploy/*.md
+/icons-src/*
+!/icons-src/app-icon.py
+*.iml

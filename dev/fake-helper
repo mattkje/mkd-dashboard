@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Stand-in for deploy/mkd-dashboard-helper when developing: pretends to run
+# apt and power actions without touching the machine.
+#
+#   HELPER=dev/fake-helper node server.js
+set -euo pipefail
+
+case "${1:-}" in
+  updates-refresh)
+    for repo in security main updates; do
+      echo "Hit: http://archive.example.org/ubuntu noble-$repo InRelease"
+      sleep 0.5
+    done
+    echo "Reading package lists... Done"
+    ;;
+  updates-install)
+    for pkg in openssl libssl3 tzdata; do
+      echo "Unpacking $pkg (fake) ..."
+      sleep 0.7
+      echo "Setting up $pkg (fake) ..."
+    done
+    echo "0 upgraded, 0 newly installed, 0 to remove (this was a dry run)"
+    ;;
+  snap-refresh | flatpak-update | firmware-update)
+    echo "fake-helper: would run $1"
+    sleep 1
+    ;;
+  reboot | poweroff | dashboard-restart) echo "fake-helper: would $1 now" ;;
+  *) echo "usage: $0 updates-refresh|updates-install|snap-refresh|flatpak-update|firmware-update|dashboard-restart|reboot|poweroff" >&2; exit 2 ;;
+esac

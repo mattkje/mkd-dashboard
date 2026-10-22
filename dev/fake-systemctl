@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Stand-in for systemctl when developing without systemd (e.g. macOS).
+# "Starting" a unit runs a dummy HTTP server on that app's port from apps.json,
+# so both the service state and the up/down check react.
+#
+#   SYSTEMCTL=dev/fake-systemctl ADMIN_PASSWORD=dev node server.js
+set -euo pipefail
+
+STATE_DIR="${FAKE_SYSTEMD_DIR:-${TMPDIR:-/tmp}/mkd-fake-systemd}"
+CONFIG="${CONFIG_PATH:-$(cd "$(dirname "$0")/.." && pwd)/apps.json}"
+mkdir -p "$STATE_DIR"
+
+port_for() {
+  node -e '
+    const [config, unit] = [require(process.argv[1]), process.argv[2]];
+    for (const group of config.groups || []) {
+      for (const app of group.apps || []) {
+        if (!app.service || app.url) continue;
+        const name = app.service.includes(".") ? app.service : `${app.service}.service`;
+        if (name === unit) {
+          console.log(app.port);
+          process.exit(0);
+        }
+      }
+    }
+  ' "$CONFIG" "$1"
+}
+
+is_running() {
+  local pid
+  pid="$(cat "$STATE_DIR/$1.pid" 2>/dev/null)" && kill -0 "$pid" 2>/dev/null
+}
+
+start() {
+  is_running "$1" && return
+  local port
+  port="$(port_for "$1")"
+  [ -n "$port" ] || { echo "Unit $1 not found." >&2; exit 5; }
+  nohup python3 -m http.server "$port" --bind 127.0.0.1 >/dev/null 2>&1 &
+  echo $! > "$STATE_DIR/$1.pid"
+  sleep 0.3
+}
+
+stop() {
+  if is_running "$1"; then kill "$(cat "$STATE_DIR/$1.pid")"; fi
+  rm -f "$STATE_DIR/$1.pid"
+}
+
+action="$1"
+shift
+for arg in "$@"; do
+  case "$arg" in --*) continue ;; esac
+  unit="$arg"
+done
+
+case "$action" in
+  show)
+    if [ -z "$(port_for "$unit")" ]; then
+      echo "LoadState=not-found"
+      exit 0
+    fi
+    if is_running "$unit"; then active=active sub=running; else active=inactive sub=dead; fi
+    [ -f "$STATE_DIR/$unit.enabled" ] && enabled=enabled || enabled=disabled
+    printf 'LoadState=loaded\nActiveState=%s\nSubState=%s\nUnitFileState=%s\n' "$active" "$sub" "$enabled"
+    ;;
+  start) start "$unit" ;;
+  stop) stop "$unit" ;;
+  restart) stop "$unit"; start "$unit" ;;
+  enable) touch "$STATE_DIR/$unit.enabled" ;;
+  disable) rm -f "$STATE_DIR/$unit.enabled" ;;
+  *) echo "Unsupported action: $action" >&2; exit 1 ;;
+esac

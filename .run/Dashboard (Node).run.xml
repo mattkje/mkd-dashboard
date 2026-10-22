@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Dashboard (Node)" type="NodeJSConfigurationType" node-parameters="--watch" path-to-js-file="server.js" working-dir="$PROJECT_DIR$">
+    <envs>
+      <env name="PORT" value="8090" />
+      <env name="ADMIN_PASSWORD" value="dev" />
+      <env name="SYSTEMCTL" value="$PROJECT_DIR$/dev/fake-systemctl" />
+      <env name="JOURNALCTL" value="$PROJECT_DIR$/dev/fake-journalctl" />
+      <env name="HELPER" value="$PROJECT_DIR$/dev/fake-helper" />
+    </envs>
+    <method v="2" />
+  </configuration>
+</component>
