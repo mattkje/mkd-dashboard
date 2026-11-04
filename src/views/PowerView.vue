@@ -36,6 +36,57 @@ const bars = computed(() => {
   return list.map((b) => ({ ...b, height: Math.max(2, (b.nok / max) * 100), now: now >= b.start && now < b.end, past: b.end <= now }));
 });
 
+// Typical energy per use, for the "best time" tips. A shower's energy is the water heater
+// reheating the water afterwards, so its timing matters as much as the shower itself.
+const CHORES = [
+  { name: 'Shower', detail: '10 minutes, the water heater reheating after', kwh: 2.5, minutes: 60 },
+  { name: 'Laundry', detail: '40 °C wash', kwh: 0.9, minutes: 120 },
+  { name: 'Dishwasher', detail: 'normal program', kwh: 1, minutes: 120 },
+  { name: 'Tumble dryer', detail: 'full load', kwh: 2.5, minutes: 120 },
+  { name: 'Oven', detail: '1 hour at 200 °C', kwh: 1.5, minutes: 60 },
+];
+
+// Average price over [start, start + minutes), or null when the prices don't reach that far.
+function windowPrice(list, start, minutes) {
+  const end = start + minutes * 60000;
+  if (!list.length || end > list.at(-1).end) return null;
+  let sum = 0;
+  for (const p of list) {
+    const overlap = Math.min(end, p.end) - Math.max(start, p.start);
+    if (overlap > 0) sum += p.nok * overlap;
+  }
+  return sum / (end - start);
+}
+
+// For each chore: the cheapest start from now on (now, or the start of a later price period),
+// and what it costs compared with starting now.
+const chores = computed(() => {
+  const p = power.value?.price;
+  if (!p) return [];
+  const list = [...p.today, ...p.tomorrow];
+  const now = Date.now();
+  return CHORES.map((chore) => {
+    const starts = [now, ...list.map((b) => b.start).filter((t) => t > now)];
+    let best = null;
+    for (const start of starts) {
+      const price = windowPrice(list, start, chore.minutes);
+      if (price != null && (!best || price < best.price - 1e-9)) best = { start, price };
+    }
+    const nowPrice = windowPrice(list, now, chore.minutes);
+    if (!best || nowPrice == null) return { ...chore, best: null };
+    return {
+      ...chore,
+      best,
+      isNow: best.start === now,
+      cost: chore.kwh * best.price,
+      saving: chore.kwh * (nowPrice - best.price),
+      nowCost: chore.kwh * nowPrice,
+    };
+  });
+});
+
+const relativeDay = (ms) => (dayKey(ms) === dayKey(Date.now()) ? 'today' : 'tomorrow');
+
 function dayKey(ms) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
 }
@@ -128,6 +179,27 @@ onUnmounted(() => clearInterval(timer));
         </p>
       </section>
 
+      <section v-if="chores.some((c) => c.best)" class="panel">
+        <h3>Best time to <span class="muted sub">· {{ power.price.tomorrow.length ? 'until tomorrow night' : 'until midnight' }}</span></h3>
+        <div class="chores">
+          <div v-for="c in chores.filter((c) => c.best)" :key="c.name" class="chore">
+            <div class="chore-name">
+              <strong>{{ c.name }}</strong>
+              <span class="muted small">{{ c.detail }} · about {{ c.kwh }} kWh</span>
+            </div>
+            <div class="chore-when">
+              <strong :class="{ 'now-text': c.isNow }">{{ c.isNow ? 'Now' : `${hourFormat.format(c.best.start)} ${relativeDay(c.best.start)}` }}</strong>
+              <span class="muted small">
+                {{ money(c.cost) }}<template v-if="c.saving >= 0.05"> · saves {{ money(c.saving) }} vs now</template><template v-else-if="!c.isNow"> · about the same as now</template>
+              </span>
+            </div>
+          </div>
+        </div>
+        <p class="muted small note">
+          Uses typical energy per use and the prices above<template v-if="!power.price.tomorrow.length">; later times show up once tomorrow's prices are out (around 13:00)</template>.
+        </p>
+      </section>
+
       <section v-if="power.days.length" class="panel">
         <h3>Cost per day</h3>
         <table class="days">
@@ -165,6 +237,12 @@ onUnmounted(() => clearInterval(timer));
 .bar.day2 i { background: color-mix(in srgb, var(--muted) 40%, transparent); }
 .bar.now i { background: var(--accent); }
 .bar:hover i { outline: 1px solid var(--text); }
+.chores { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0 28px; }
+.chore { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.chore-name, .chore-when { display: grid; gap: 1px; }
+.chore-when { text-align: right; white-space: nowrap; }
+.chore strong { font-weight: 550; }
+.now-text { color: var(--up); }
 .days { width: 100%; border-collapse: collapse; font-size: 14px; }
 .days td { padding: 6px 0; border-top: 1px solid var(--line); }
 .days tr:first-child td { border-top: none; }
