@@ -93,7 +93,10 @@ elif [ ! -f "$ENV_FILE" ]; then
 fi
 
 # Service logs need the journal group; Docker needs the docker group (which is root-equivalent).
-for group in systemd-journal docker; do
+# An agent offers no Docker page, so it doesn't get that group.
+groups="systemd-journal docker"
+[ -z "$AGENT" ] || groups=systemd-journal
+for group in $groups; do
   if getent group "$group" >/dev/null && ! id -nG "$SERVICE_USER" | tr ' ' '\n' | grep -qx "$group"; then
     usermod -aG "$group" "$SERVICE_USER"
     echo "Added $SERVICE_USER to the $group group"
