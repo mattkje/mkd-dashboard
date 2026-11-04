@@ -365,7 +365,8 @@ watch(filter, (q) => { if (!q) results.value = null; });
 .list.loading { opacity: 0.6; }
 .row {
   display: grid;
-  grid-template-columns: 18px 18px minmax(0, 1fr) 80px 160px 40px auto;
+  /* Fixed last column: rows have different buttons (Zip or Download), and each row is its own grid. */
+  grid-template-columns: 18px 22px minmax(0, 1fr) 80px 160px 40px 220px;
   align-items: center;
   gap: 12px;
   min-height: 44px;
@@ -377,8 +378,8 @@ watch(filter, (q) => { if (!q) results.value = null; });
 .row.head { min-height: 34px; }
 .row form { min-width: 0; }
 .row form .input { width: 100%; }
-.kind { width: 16px; height: 16px; border: 1.5px solid var(--muted); border-radius: 3px; }
-.kind.dir { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 2px 5px 3px 3px; }
+.kind { width: 20px; height: 20px; background: url('../assets/file.svg') center / contain no-repeat; }
+.kind.dir { background-image: url('../assets/folder.svg'); }
 .name {
   overflow: hidden;
   padding: 0;
@@ -391,11 +392,11 @@ watch(filter, (q) => { if (!q) results.value = null; });
 }
 .name:hover { text-decoration: underline; }
 .size { text-align: right; }
-.row-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.1s; }
+.row-actions { display: flex; justify-content: flex-end; gap: 6px; opacity: 0; transition: opacity 0.1s; }
 .row:hover .row-actions, .row:focus-within .row-actions { opacity: 1; }
 .inner-empty { margin: 12px; }
 @media (max-width: 760px) {
-  .row { grid-template-columns: 18px 18px minmax(0, 1fr) auto; }
+  .row { grid-template-columns: 18px 22px minmax(0, 1fr) auto; }
   .size, .date, .mode { display: none; }
   /* Row actions move into the selection bar on phones. */
   .row-actions { display: none; }
