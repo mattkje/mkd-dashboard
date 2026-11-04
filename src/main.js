@@ -9,6 +9,7 @@ const router = createRouter({
   routes: [
     { path: '/', component: AppsView, meta: { title: 'Apps' } },
     { path: '/system', component: () => import('./views/SystemView.vue'), meta: { title: 'System' } },
+    { path: '/power', component: () => import('./views/PowerView.vue'), meta: { title: 'Power' } },
     { path: '/updates', component: () => import('./views/UpdatesView.vue'), meta: { title: 'Updates' } },
     { path: '/docker', component: () => import('./views/DockerView.vue'), meta: { title: 'Docker' } },
     { path: '/files', component: () => import('./views/FilesView.vue'), meta: { title: 'Files' } },

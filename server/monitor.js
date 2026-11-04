@@ -1,4 +1,5 @@
 // Background checks once a minute: keeps 24 hours of history for the charts and uptime bars,
+// samples power use (server/power.js),
 // and sends alerts when an app or container goes down or a disk fills up.
 const stored = require('./state');
 const alerts = require('./alerts');
@@ -6,6 +7,7 @@ const apps = require('./apps');
 const docker = require('./docker');
 const system = require('./system');
 const updates = require('./updates');
+const power = require('./power');
 
 const INTERVAL_MS = 60 * 1000;
 const KEEP_MS = 24 * 60 * 60 * 1000;
@@ -118,11 +120,14 @@ function prune(now) {
 
 async function tick() {
   const now = Date.now();
-  const results = await Promise.allSettled([checkApps(now), checkSystem(now), checkContainers()]);
+  const results = await Promise.allSettled([checkApps(now), checkSystem(now), checkContainers(), power.sample(now)]);
   for (const r of results) if (r.status === 'rejected') console.error('monitor:', r.reason);
   prune(now);
   // Every 5 minutes is plenty; at most a few minutes of history is lost on a crash.
-  if (++ticks % 5 === 1) stored.save('history.json', history);
+  if (++ticks % 5 === 1) {
+    stored.save('history.json', history);
+    power.save();
+  }
 }
 
 // Alerts when updates appear, and again only when more security updates show up.
@@ -150,6 +155,7 @@ function start() {
   setInterval(checkUpdates, UPDATES_MS);
   process.once('SIGTERM', () => {
     stored.save('history.json', history);
+    power.save();
     process.exit(0);
   });
 }

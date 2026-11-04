@@ -21,6 +21,7 @@ const monitor = require('./server/monitor');
 const alerts = require('./server/alerts');
 const jobs = require('./server/jobs');
 const updates = require('./server/updates');
+const power = require('./server/power');
 const { HttpError, sendJson } = require('./server/http');
 
 const PORT = Number(process.env.PORT) || 8090;
@@ -61,6 +62,7 @@ const routes = [
 
   ['GET', /^\/api\/system$/, () => system.stats()],
   ['POST', /^\/api\/system\/power\/(\w+)$/, (req, res, [action]) => system.power(action)],
+  ['GET', /^\/api\/power$/, () => power.status()],
   ['GET', /^\/api\/updates$/, () => updates.list()],
   ['POST', /^\/api\/updates\/check$/, () => updates.check()],
   ['POST', /^\/api\/updates\/refresh$/, () => updates.refresh()],

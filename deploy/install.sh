@@ -66,6 +66,16 @@ done
 
 install -D -m 0755 -o root -g root "$APP_DIR/deploy/mkd-dashboard-helper" "$HELPER"
 
+# The Power page reads the CPU's energy counters, which the kernel makes root-only. Let the
+# dashboard user's group read just those files, now and after every boot.
+UDEV_RULE=/etc/udev/rules.d/90-mkd-dashboard-power.rules
+if [ -d /sys/class/powercap ]; then
+  group="$(id -gn "$SERVICE_USER")"
+  echo "SUBSYSTEM==\"powercap\", KERNEL==\"intel-rapl:*\", RUN+=\"/bin/chgrp $group /sys%p/energy_uj\", RUN+=\"/bin/chmod g+r /sys%p/energy_uj\"" > "$UDEV_RULE"
+  udevadm control --reload
+  udevadm trigger --subsystem-match=powercap --action=add
+fi
+
 # apps.json is not in git; start from the example on a fresh checkout.
 if [ ! -f "$APP_DIR/apps.json" ]; then
   sudo -u "$SERVICE_USER" cp "$APP_DIR/apps.example.json" "$APP_DIR/apps.json"

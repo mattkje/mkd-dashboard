@@ -5,6 +5,7 @@ Control panel for the home lab, reachable from any of your devices over Tailscal
 - **Apps**: every app as a card with a live up/down indicator and a 24-hour uptime bar. Apps backed by a systemd unit can be started, stopped, restarted, enabled or disabled, and their journal viewed or followed live. Add, edit, reorder (drag and drop) and group apps from the page itself.
 - **System**: CPU, memory, disk usage with 24-hour charts, swap, temperatures and uptime; alert settings and recent alerts; restart and shut down.
 - **Updates**: everything that can be updated, in one list: apt packages (security updates marked), a new Ubuntu release, snaps, flatpaks, firmware (fwupd), Docker images (compared with their registry) and the dashboard's own git checkout. Update one source or everything at once; firmware and OS release upgrades are left out of "everything" on purpose. Checked every 6 hours, with an alert when security updates appear.
+- **Power**: the server's power draw over 24 hours, today's and tomorrow's electricity prices for your price area (from [hvakosterstrommen.no](https://www.hvakosterstrommen.no)), and what the server costs per day, this month and per month at its current draw, in NOK. The CPU and RAM are measured (Intel RAPL); the rest of the machine is a fixed estimate (`POWER_EXTRA_WATTS`).
 - **Docker**: containers grouped by Compose project with start/stop/restart for single containers or whole stacks, CPU and memory per container, live logs, and "Update" (pull newer images and recreate).
 - **Files**: browse, filter and search, preview images, video, audio and PDFs, edit text files, upload (drag and drop), download files or folders as .zip, select several to move, zip or delete.
 - **Terminal**: shells in the browser. With tmux on the server they are named sessions that keep running when you close the tab or lose the connection; switch between them with tabs. On phones a key bar adds Esc, Tab, Ctrl and arrows.
@@ -23,6 +24,7 @@ The portal runs as **your own user**, so the terminal and file browser can do wh
 - Root actions are limited by sudo to `systemctl start|stop|restart|enable|disable` for the units in `apps.json` (as of the last `install.sh` run) and to `/usr/local/libexec/mkd-dashboard-helper`, which only knows a fixed list of actions: apt update/upgrade, snap refresh, flatpak update, firmware update, restarting the dashboard, reboot and power off. Anything else needs `sudo` with your password in the terminal.
 - Keep the unit files of those apps (and anything their `ExecStart` runs) root-owned. If your user could edit one, `sudo systemctl start` would run your code as root.
 - Docker access means membership of the `docker` group, which is root-equivalent.
+- `install.sh` adds a udev rule that lets your user's group read the CPU energy counters (`/sys/class/powercap/intel-rapl:*/energy_uj`) for the Power page. The kernel makes them root-only because fast, repeated reads can leak information about other programs; the dashboard reads them once a minute.
 
 Use a long random password (the generated one is fine), and consider limiting who on the tailnet can reach the server with a Tailscale ACL, as in [deploy/prod-admin.md](deploy/prod-admin.md#5-tailscale-acl).
 
@@ -152,6 +154,10 @@ An app counts as "up" if it returns any HTTP response (including 401 or a redire
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | unset (Telegram alerts off) |
 | `DOCKER`, `PYTHON`, `TMUX_BIN` | `docker`, `python3`, `tmux` |
 | `SYSTEMCTL`, `JOURNALCTL`, `HELPER` | real tools; development fakes in `dev/` |
+| `POWER_ZONE` | `NO1`. Price area for the Power page: `NO1` Oslo, `NO2` Kristiansand, `NO3` Trondheim, `NO4` Tromsø (no VAT), `NO5` Bergen |
+| `POWER_EXTRA_WATTS` | `6`. Added to the measured CPU and RAM power for the rest of the machine (board, disks, power supply), which isn't measured |
+| `POWER_GRID_NOK_PER_KWH` | `0`. Network fee per kWh including VAT, from your grid company; without it, costs are the spot price plus VAT |
+| `POWER_RAPL_DIR` | `/sys/class/powercap` (development: a folder laid out the same way) |
 
 ## Private apps on other servers
 

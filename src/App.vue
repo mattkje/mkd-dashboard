@@ -13,6 +13,7 @@ const route = useRoute();
 const NAV = [
   { to: '/', label: 'Apps', icon: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z' },
   { to: '/system', label: 'System', icon: 'M4 5h16v11H4zM9 20h6M12 16v4' },
+  { to: '/power', label: 'Power', icon: 'M13 2 4 14h7l-1 8 9-12h-7z' },
   { to: '/updates', label: 'Updates', icon: 'M12 3v12M7 10l5 5 5-5M5 21h14' },
   { to: '/docker', label: 'Docker', icon: 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8' },
   { to: '/files', label: 'Files', icon: 'M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z' },

@@ -2,10 +2,13 @@
 import { computed, ref } from 'vue';
 import { percent } from '../format.js';
 
-// Area chart of 0..1 values over time, with a hover readout. points: [{ t, v }].
+// Area chart of values over time, with a hover readout. points: [{ t, v }], v from 0 to max
+// (1 by default, shown as a percentage unless format says otherwise).
 const props = defineProps({
   points: Array,
   level: String,
+  max: { type: Number, default: 1 },
+  format: { type: Function, default: percent },
 });
 
 const W = 300;
@@ -18,7 +21,7 @@ const range = computed(() => {
 });
 
 const x = (t) => (range.value.max === range.value.min ? W : ((t - range.value.min) / (range.value.max - range.value.min)) * W);
-const y = (v) => H - Math.min(1, Math.max(0, v)) * (H - 2) - 1;
+const y = (v) => H - Math.min(1, Math.max(0, v / (props.max || 1))) * (H - 2) - 1;
 
 const line = computed(() => props.points.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(''));
 const area = computed(() => (props.points.length ? `${line.value}L${W},${H}L${x(props.points[0].t).toFixed(1)},${H}Z` : ''));
@@ -42,7 +45,7 @@ function onMove(e) {
       <line v-if="hover" :x1="x(hover.t)" :x2="x(hover.t)" y1="0" :y2="H" class="cursor" vector-effect="non-scaling-stroke"/>
     </svg>
     <p v-else class="muted small">Collecting data…</p>
-    <span v-if="hover" class="readout">{{ percent(hover.v) }} · {{ timeFormat.format(hover.t) }}</span>
+    <span v-if="hover" class="readout">{{ format(hover.v) }} · {{ timeFormat.format(hover.t) }}</span>
   </div>
 </template>
 
