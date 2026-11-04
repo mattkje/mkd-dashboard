@@ -202,7 +202,8 @@ function relative(path) {
 }
 
 watch(() => route.query.path, () => {
-  if (route.path !== '/files') return;
+  // Only while this page is shown (on this server: /files, on another: /s/<id>/files).
+  if (route.path !== serverPath('/files')) return;
   selected.value = new Set();
   clearSearch();
   load();
