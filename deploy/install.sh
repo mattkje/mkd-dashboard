@@ -7,11 +7,34 @@
 #   sudo ./deploy/install.sh            # runs as the user who called sudo
 #   sudo ./deploy/install.sh someuser
 #
+# On another machine that the main dashboard should control (see server/agent.js):
+#
+#   sudo ./deploy/install.sh --agent <listen-address> [<main-dashboard-address>]
+#
+# The agent listens on <listen-address>:8099 (its Tailscale or LAN address, never 0.0.0.0) and,
+# if given, only accepts connections from <main-dashboard-address>.
+#
 # Re-run after adding or changing "service" entries in apps.json, and after
 # pulling changes (it rebuilds dist/).
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+AGENT=
+if [ "${1:-}" = --agent ]; then
+  AGENT=1
+  AGENT_HOST="${2:-}"
+  AGENT_ALLOW="${3:-}"
+  AGENT_PORT=8099
+  if ! [[ "$AGENT_HOST" =~ ^[0-9a-fA-F.:]+$ ]] || [[ "$AGENT_HOST" =~ ^(0\.0\.0\.0|::)$ ]]; then
+    echo "Usage: sudo $0 --agent <listen-address> [<main-dashboard-address>] (an address of this machine, not 0.0.0.0)" >&2
+    exit 1
+  fi
+  if [ -n "$AGENT_ALLOW" ] && ! [[ "$AGENT_ALLOW" =~ ^[0-9a-fA-F.:,]+$ ]]; then
+    echo "The main dashboard's address looks wrong: $AGENT_ALLOW" >&2
+    exit 1
+  fi
+  set -- "${SUDO_USER:-}"
+fi
 SERVICE_USER="${1:-${SUDO_USER:-}}"
 ENV_FILE=/etc/mkd-dashboard.env
 UNIT_FILE=/etc/systemd/system/mkd-dashboard.service
@@ -32,11 +55,11 @@ if [ -z "$NODE" ] || [ -z "$NPM" ]; then
   echo "Node.js 20.19+ with npm is required (install it system-wide, not through nvm)" >&2
   exit 1
 fi
-if ! command -v python3 >/dev/null; then
+if [ -z "$AGENT" ] && ! command -v python3 >/dev/null; then
   echo "python3 is required for the web terminal" >&2
   exit 1
 fi
-if ! command -v tmux >/dev/null; then
+if [ -z "$AGENT" ] && ! command -v tmux >/dev/null; then
   echo "Note: install tmux (sudo apt install tmux) to keep terminal sessions across closed tabs and restarts."
 fi
 SYSTEMCTL="$(command -v systemctl)"
@@ -49,7 +72,20 @@ fi
 # Build as the service user, so node_modules/ and dist/ are not owned by root.
 sudo -u "$SERVICE_USER" -H sh -c 'cd "$1" && "$2" ci --no-audit --no-fund && "$2" run build' sh "$APP_DIR" "$NPM"
 
-if [ ! -f "$ENV_FILE" ]; then
+# An agent has no login; the main dashboard proves itself with AGENT_TOKEN instead.
+# Settings in the env file override the defaults in the unit file (HOST, PORT).
+set_env() { # set_env NAME value
+  touch "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
+  sed -i "/^$1=/d" "$ENV_FILE"
+  printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"
+}
+if [ -n "$AGENT" ]; then
+  grep -q '^AGENT_TOKEN=' "$ENV_FILE" 2>/dev/null || set_env AGENT_TOKEN "$(head -c 32 /dev/urandom | base64 | tr -d '/+=')"
+  set_env HOST "$AGENT_HOST"
+  set_env PORT "$AGENT_PORT"
+  set_env AGENT_ALLOW "$AGENT_ALLOW"
+elif [ ! -f "$ENV_FILE" ]; then
   password="$(head -c 18 /dev/urandom | base64 | tr -d '/+=')"
   printf 'ADMIN_PASSWORD=%s\n' "$password" > "$ENV_FILE"
   chmod 600 "$ENV_FILE"
@@ -116,6 +152,11 @@ sed -e "s#@APP_DIR@#$APP_DIR#" -e "s#@NODE@#$NODE#" -e "s#@USER@#$SERVICE_USER#"
 systemctl daemon-reload
 systemctl enable mkd-dashboard.service >/dev/null
 systemctl restart mkd-dashboard.service
+if [ -n "$AGENT" ]; then
+  echo "mkd-dashboard.service (agent) is $(systemctl is-active mkd-dashboard.service) on $AGENT_HOST:$AGENT_PORT, running as $SERVICE_USER"
+  echo "Add it to servers.json of the main dashboard, with the token from: sudo grep AGENT_TOKEN $ENV_FILE"
+  exit 0
+fi
 echo "mkd-dashboard.service is $(systemctl is-active mkd-dashboard.service) on 127.0.0.1:8090, running as $SERVICE_USER"
 
 if id mkd-dashboard >/dev/null 2>&1; then

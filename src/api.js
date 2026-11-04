@@ -1,12 +1,25 @@
 import { lockedOut, state } from './store.js';
 
+// Requests while another server is shown go to its agent, through this dashboard
+// (/api/servers/<id>/api/...). Signing in and the list of servers are always this one's.
+const LOCAL_ONLY = /^\/api\/(session|login|logout|servers)(\/|$|\?)/;
+
+export function apiUrl(url) {
+  return state.server && url.startsWith('/api/') && !LOCAL_ONLY.test(url) ? `/api/servers/${state.server}${url}` : url;
+}
+
 // Any 401 means the session ended (expired, signed out elsewhere, server state wiped): back to the login page.
-async function request(url, options) {
-  const res = await fetch(url, options);
+async function request(url, options, local) {
+  const res = await fetch(local ? url : apiUrl(url), options);
   const body = res.headers.get('content-type')?.includes('application/json') ? await res.json() : null;
   if (res.status === 401 && url !== '/api/login') lockedOut();
   if (!res.ok) throw new Error(body?.error || `${res.status} ${res.statusText}`);
   return body;
+}
+
+// Always this dashboard's own API, whichever server is shown.
+export function localJson(url) {
+  return request(url, undefined, true);
 }
 
 export function getJson(url, params) {

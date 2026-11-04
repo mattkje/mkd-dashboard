@@ -154,10 +154,37 @@ An app counts as "up" if it returns any HTTP response (including 401 or a redire
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | unset (Telegram alerts off) |
 | `DOCKER`, `PYTHON`, `TMUX_BIN` | `docker`, `python3`, `tmux` |
 | `SYSTEMCTL`, `JOURNALCTL`, `HELPER` | real tools; development fakes in `dev/` |
+| `AGENT_TOKEN`, `AGENT_ALLOW` | unset. Set by `install.sh --agent`: the token the main dashboard must send, and the client addresses allowed to connect. See [Other servers](#other-servers-agents) |
+| `SERVERS_FILE` | `./servers.json` (the other servers this dashboard controls) |
 | `POWER_ZONE` | `NO1`. Price area for the Power page: `NO1` Oslo, `NO2` Kristiansand, `NO3` Trondheim, `NO4` Tromsø (no VAT), `NO5` Bergen |
 | `POWER_EXTRA_WATTS` | `6`. Added to the measured CPU and RAM power for the rest of the machine (board, disks, power supply), which isn't measured |
 | `POWER_GRID_NOK_PER_KWH` | `0`. Network fee per kWh including VAT, from your grid company; without it, costs are the spot price plus VAT |
 | `POWER_RAPL_DIR` | `/sys/class/powercap` (development: a folder laid out the same way) |
+
+## Other servers (agents)
+
+The same checkout can run on your other machines as an **agent**: no web pages and no login, just the API behind the System, Apps (services), Updates and Files pages. Pick a server in the menu next to the title and those pages show that machine. Terminal, Docker, Power and alerts stay with the main dashboard, which also alerts when an agent stops answering.
+
+Nothing stays connected between the machines: each request for a remote page is passed on to its agent (over Tailscale or the LAN), and the monitor asks every agent for its status once every 5 minutes.
+
+On the other machine (Node.js 20.19+ and git needed), as the user it should run as:
+
+```sh
+git clone https://github.com/mattkje/mkd-dashboard.git ~/mkd-dashboard
+cd ~/mkd-dashboard
+# Listen on this machine's Tailscale or LAN address; only accept the main dashboard's address.
+sudo ./deploy/install.sh --agent 100.x.y.z 100.a.b.c
+```
+
+The agent gets a random `AGENT_TOKEN` in its `/etc/mkd-dashboard.env` and its own `apps.json` with the services you want to control there (the `service` entries, as above; re-run the install command after changing them). Then list it in `servers.json` next to the main dashboard's `apps.json` (not in git, mode 600):
+
+```json
+[
+  { "id": "prod", "name": "mkd-server-prod", "url": "http://100.x.y.z:8099", "token": "<AGENT_TOKEN>" }
+]
+```
+
+Over Tailscale the connection is encrypted. Over a LAN it is plain HTTP, so anyone on that network who can watch traffic could see the token; put the machine on your tailnet if that matters. The agent only answers the routes in `server/agent.js`; root actions go through the same sudo rules and helper as the main dashboard.
 
 ## Private apps on other servers
 

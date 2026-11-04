@@ -8,6 +8,7 @@ const docker = require('./docker');
 const system = require('./system');
 const updates = require('./updates');
 const power = require('./power');
+const servers = require('./servers');
 
 const INTERVAL_MS = 60 * 1000;
 const KEEP_MS = 24 * 60 * 60 * 1000;
@@ -23,6 +24,7 @@ const UPDATES_MS = 6 * 60 * 60 * 1000;
 const history = stored.load('history.json', { system: [], apps: {} });
 const appState = new Map(); // name -> { fails, down }
 const containerState = new Map(); // name -> { running, alerted }
+const serverState = new Map(); // id -> { fails, down }
 const diskAlerted = new Set();
 const expected = new Map(); // key -> until
 let containerNames = new Map(); // id -> name
@@ -106,6 +108,26 @@ async function checkContainers() {
   }
 }
 
+// Other servers (server/servers.js), every few minutes: one short request each, nothing kept open.
+const SERVERS_EVERY = 5;
+async function checkServers() {
+  if (ticks % SERVERS_EVERY !== 0) return;
+  await Promise.all(servers.load().map(async (server) => {
+    const up = await servers.reachable(server);
+    const name = server.name || server.id;
+    const s = serverState.get(server.id) || { fails: 0, down: false };
+    s.fails = up ? 0 : s.fails + 1;
+    if (!s.down && s.fails >= FAILS_BEFORE_DOWN) {
+      s.down = true;
+      alerts.send(`${name} isn’t answering`, `The dashboard couldn’t reach its agent for ${FAILS_BEFORE_DOWN * SERVERS_EVERY} minutes.`, 'down');
+    } else if (s.down && up) {
+      s.down = false;
+      alerts.send(`${name} answers again`, 'Its agent responds again.', 'up');
+    }
+    serverState.set(server.id, s);
+  }));
+}
+
 const sample = {};
 
 function prune(now) {
@@ -120,7 +142,7 @@ function prune(now) {
 
 async function tick() {
   const now = Date.now();
-  const results = await Promise.allSettled([checkApps(now), checkSystem(now), checkContainers(), power.sample(now)]);
+  const results = await Promise.allSettled([checkApps(now), checkSystem(now), checkContainers(), power.sample(now), checkServers()]);
   for (const r of results) if (r.status === 'rejected') console.error('monitor:', r.reason);
   prune(now);
   // Every 5 minutes is plenty; at most a few minutes of history is lost on a crash.

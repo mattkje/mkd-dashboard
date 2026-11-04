@@ -1,24 +1,37 @@
 <script setup>
-import { onMounted, watch } from 'vue';
-import { RouterLink, RouterView, useRoute } from 'vue-router';
+import { computed, onMounted, watch } from 'vue';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import LoginView from './views/LoginView.vue';
 import LogsDialog from './components/LogsDialog.vue';
 import Toaster from './components/Toaster.vue';
-import { getJson, post } from './api.js';
-import { lockedOut, state } from './store.js';
+import { getJson, localJson, post } from './api.js';
+import { lockedOut, serverPath, state } from './store.js';
 import { cycleTheme, theme } from './theme.js';
 
 const route = useRoute();
+const router = useRouter();
 
 const NAV = [
-  { to: '/', label: 'Apps', icon: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z' },
-  { to: '/system', label: 'System', icon: 'M4 5h16v11H4zM9 20h6M12 16v4' },
+  { to: '/', label: 'Apps', remote: true, icon: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z' },
+  { to: '/system', label: 'System', remote: true, icon: 'M4 5h16v11H4zM9 20h6M12 16v4' },
   { to: '/power', label: 'Power', icon: 'M13 2 4 14h7l-1 8 9-12h-7z' },
-  { to: '/updates', label: 'Updates', icon: 'M12 3v12M7 10l5 5 5-5M5 21h14' },
+  { to: '/updates', label: 'Updates', remote: true, icon: 'M12 3v12M7 10l5 5 5-5M5 21h14' },
   { to: '/docker', label: 'Docker', icon: 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8' },
-  { to: '/files', label: 'Files', icon: 'M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z' },
+  { to: '/files', label: 'Files', remote: true, icon: 'M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z' },
   { to: '/terminal', label: 'Terminal', icon: 'M4 5h16v14H4zM8 10l3 2-3 2M13 15h3' },
 ];
+
+// Another server shows only the pages its agent answers (see server/agent.js).
+const nav = computed(() => NAV.filter((item) => !state.server || item.remote).map((item) => ({ ...item, to: serverPath(item.to) })));
+const serverName = computed(() => state.servers.find((s) => s.id === state.server)?.name);
+
+// Stays on the same page when the other server has it, otherwise goes to its Apps page.
+function switchServer(id) {
+  const page = route.path.replace(/^\/s\/[^/]+/, '') || '/';
+  const item = NAV.find((n) => n.to === page);
+  const target = item && (item.remote || !id) ? page : '/';
+  router.push(id ? `/s/${id}${target === '/' ? '' : target}` : target);
+}
 
 const THEME_ICONS = {
   system: 'M4 5h16v11H4zM9 20h6M12 16v4',
@@ -34,17 +47,18 @@ async function signOut() {
   }
 }
 
-// For the title in the header and the updates badge; the Apps and Updates pages keep them fresh.
+// This dashboard's title, its updates badge and the other servers, whichever server is shown.
 watch(() => state.session.authed, async (authed) => {
   if (!authed) return;
-  if (!state.config) state.config = await getJson('/api/config').catch(() => null);
-  const updates = await getJson('/api/updates').catch(() => null);
+  state.title = (await localJson('/api/config').catch(() => null))?.title ?? null;
+  state.servers = await localJson('/api/servers').catch(() => []);
+  const updates = await localJson('/api/updates').catch(() => null);
   if (updates) state.updates = updates.sources.reduce((sum, s) => sum + s.items.length, 0);
 });
 
 watch(
-  () => [state.config?.title, route.meta.title],
-  ([title, page]) => { document.title = [page, title || 'MKD'].filter(Boolean).join(' · '); },
+  () => [state.title, serverName.value, route.meta.title],
+  ([title, server, page]) => { document.title = [page, server, title || 'MKD'].filter(Boolean).join(' · '); },
 );
 
 onMounted(async () => {
@@ -60,13 +74,24 @@ onMounted(async () => {
     <LoginView v-if="!state.session.authed" />
     <div v-else class="shell">
       <header class="nav">
-        <RouterLink to="/" class="brand"><img src="/logo.svg" alt="" class="brand-logo">{{ state.config?.title ?? 'MKD' }}</RouterLink>
+        <RouterLink to="/" class="brand"><img src="/logo.svg" alt="" class="brand-logo">{{ state.title ?? 'MKD' }}</RouterLink>
+        <select
+          v-if="state.servers.length"
+          class="input small server-pick"
+          :class="{ remote: state.server }"
+          :value="state.server"
+          aria-label="Server"
+          @change="switchServer($event.target.value)"
+        >
+          <option value="">This server</option>
+          <option v-for="s in state.servers" :key="s.id" :value="s.id">{{ s.name }}</option>
+        </select>
         <!-- On phones this becomes a tab bar fixed to the bottom of the screen. -->
         <nav class="tabs">
-          <RouterLink v-for="item in NAV" :key="item.to" :to="item.to">
+          <RouterLink v-for="item in nav" :key="item.to" :to="item.to">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="item.icon"/></svg>
             <span>{{ item.label }}</span>
-            <b v-if="item.to === '/updates' && state.updates" class="badge">{{ state.updates }}</b>
+            <b v-if="item.to === '/updates' && !state.server && state.updates" class="badge">{{ state.updates }}</b>
           </RouterLink>
         </nav>
         <button
@@ -86,7 +111,7 @@ onMounted(async () => {
         <!-- The terminal stays alive while you look at other pages. -->
         <RouterView v-slot="{ Component }">
           <KeepAlive include="TerminalView">
-            <component :is="Component" />
+            <component :is="Component" :key="state.server" />
           </KeepAlive>
         </RouterView>
       </main>

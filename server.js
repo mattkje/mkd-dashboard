@@ -22,6 +22,8 @@ const alerts = require('./server/alerts');
 const jobs = require('./server/jobs');
 const updates = require('./server/updates');
 const power = require('./server/power');
+const agent = require('./server/agent');
+const servers = require('./server/servers');
 const { HttpError, sendJson } = require('./server/http');
 
 const PORT = Number(process.env.PORT) || 8090;
@@ -63,6 +65,7 @@ const routes = [
   ['GET', /^\/api\/system$/, () => system.stats()],
   ['POST', /^\/api\/system\/power\/(\w+)$/, (req, res, [action]) => system.power(action)],
   ['GET', /^\/api\/power$/, () => power.status()],
+  ['GET', /^\/api\/servers$/, () => servers.list()],
   ['GET', /^\/api\/updates$/, () => updates.list()],
   ['POST', /^\/api\/updates\/check$/, () => updates.check()],
   ['POST', /^\/api\/updates\/refresh$/, () => updates.refresh()],
@@ -98,6 +101,11 @@ const routes = [
 
 async function handleApi(req, res, url) {
   const { pathname } = url;
+  // An agent answers only its main dashboard, with a token instead of a login.
+  if (agent.enabled) {
+    agent.authorize(req, pathname);
+    return runRoute(req, res, url);
+  }
   if (pathname === '/api/session') return sendJson(res, 200, { enabled: auth.enabled, authed: auth.isAuthed(req) });
 
   // Custom header blocks cross-site form posts (CSRF) on top of the SameSite cookie.
@@ -113,6 +121,14 @@ async function handleApi(req, res, url) {
   }
 
   if (!auth.isAuthed(req)) throw new HttpError(401, 'not logged in');
+  // Pages of another machine: passed on to its agent (see server/servers.js).
+  const remote = pathname.match(/^\/api\/servers\/([a-z0-9-]+)(\/api\/.*)$/);
+  if (remote) return servers.proxy(req, res, remote[1], remote[2] + url.search);
+  return runRoute(req, res, url);
+}
+
+async function runRoute(req, res, url) {
+  const { pathname } = url;
   for (const [method, pattern, handler] of routes) {
     const match = pathname.match(pattern);
     if (!match) continue;
@@ -150,6 +166,10 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
     if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
+    if (agent.enabled) {
+      res.writeHead(404);
+      return res.end();
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405);
       return res.end();
@@ -164,7 +184,7 @@ const server = http.createServer(async (req, res) => {
 
 server.on('upgrade', (req, socket, head) => {
   try {
-    if (new URL(req.url, 'http://x').pathname === '/api/terminal') return terminal.handleUpgrade(req, socket, head);
+    if (!agent.enabled && new URL(req.url, 'http://x').pathname === '/api/terminal') return terminal.handleUpgrade(req, socket, head);
   } catch (err) {
     console.error(err);
   }
@@ -174,8 +194,8 @@ server.on('upgrade', (req, socket, head) => {
 monitor.start();
 
 server.listen(PORT, HOST, () => {
-  console.log(`Dashboard on http://${HOST}:${PORT}`);
-  if (!auth.enabled) console.log('ADMIN_PASSWORD not set: login disabled, the portal cannot be used');
+  console.log(`${agent.enabled ? 'Agent' : 'Dashboard'} on http://${HOST}:${PORT}`);
+  if (!agent.enabled && !auth.enabled) console.log('ADMIN_PASSWORD not set: login disabled, the portal cannot be used');
   if (!fs.existsSync(path.join(STATIC_DIR, 'index.html'))) console.log('dist/ is missing: run npm run build');
   console.log(`Alerts: ${alerts.channels().join(', ') || 'none configured (set NTFY_URL or TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)'}`);
 });

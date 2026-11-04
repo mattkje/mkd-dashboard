@@ -1,3 +1,4 @@
+import { serverHost } from './store.js';
 const ICON_CDN = 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/';
 
 // Local apps link to whatever host the browser used to reach the dashboard
@@ -7,7 +8,8 @@ export function appUrl(app) {
   const scheme = app.scheme || 'http';
   const defaultPort = (scheme === 'http' && app.port === 80) || (scheme === 'https' && app.port === 443);
   const port = defaultPort ? '' : `:${app.port}`;
-  return `${scheme}://${location.hostname}${port}${app.path || ''}`;
+  // Apps of another server open on that server's address.
+  return `${scheme}://${serverHost()}${port}${app.path || ''}`;
 }
 
 export function iconSrc(icon) {

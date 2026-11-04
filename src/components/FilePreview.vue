@@ -1,4 +1,5 @@
 <script setup>
+import { apiUrl } from '../api.js';
 import { computed, ref, watch } from 'vue';
 
 // Shows an image, video, audio file or PDF inline. path: absolute path, or null when closed.
@@ -15,8 +16,8 @@ const KINDS = {
 const dialog = ref(null);
 
 const kind = computed(() => Object.keys(KINDS).find((k) => KINDS[k].test(props.path || '')));
-const url = computed(() => `/api/files/download?${new URLSearchParams({ path: props.path || '', inline: '1' })}`);
-const downloadUrl = computed(() => `/api/files/download?${new URLSearchParams({ path: props.path || '' })}`);
+const url = computed(() => apiUrl(`/api/files/download?${new URLSearchParams({ path: props.path || '', inline: '1' })}`));
+const downloadUrl = computed(() => apiUrl(`/api/files/download?${new URLSearchParams({ path: props.path || '' })}`));
 
 watch(() => props.path, (path) => {
   if (path) dialog.value.showModal();

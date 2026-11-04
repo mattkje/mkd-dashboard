@@ -1,7 +1,7 @@
 # Template: deploy/install.sh fills in @APP_DIR@, @NODE@ and @USER@.
 [Unit]
 Description=MKD dashboard
-After=network-online.target
+After=network-online.target tailscaled.service
 Wants=network-online.target
 
 [Service]
@@ -18,6 +18,8 @@ StateDirectoryMode=0700
 # restart of the dashboard. Without tmux, terminals end with the connection anyway.
 KillMode=process
 Restart=on-failure
+# Keeps retrying while an agent waits for its address to appear.
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target

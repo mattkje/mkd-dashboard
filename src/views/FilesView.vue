@@ -5,8 +5,9 @@ import ConfirmButton from '../components/ConfirmButton.vue';
 import EmptyState from '../components/EmptyState.vue';
 import FileEditor from '../components/FileEditor.vue';
 import FilePreview from '../components/FilePreview.vue';
-import { getJson, post, upload } from '../api.js';
+import { apiUrl, getJson, post, upload } from '../api.js';
 import { bytes, dateTime } from '../format.js';
+import { serverPath } from '../store.js';
 import { attempt, toast } from '../toast.js';
 
 const route = useRoute();
@@ -73,7 +74,7 @@ async function load() {
 function go(path) {
   renaming.value = null;
   creating.value = false;
-  router.push({ path: '/files', query: { path } });
+  router.push({ path: serverPath('/files'), query: { path } });
 }
 
 function open(entry) {
@@ -82,8 +83,8 @@ function open(entry) {
   else editing.value = entry.path;
 }
 
-const downloadUrl = (path) => `/api/files/download?${new URLSearchParams({ path })}`;
-const zipUrl = (paths) => `/api/files/zip?${new URLSearchParams(paths.map((p) => ['path', p]))}`;
+const downloadUrl = (path) => apiUrl(`/api/files/download?${new URLSearchParams({ path })}`);
+const zipUrl = (paths) => apiUrl(`/api/files/zip?${new URLSearchParams(paths.map((p) => ['path', p]))}`);
 
 function toggle(entry) {
   const next = new Set(selected.value);

@@ -5,7 +5,7 @@ import ConfirmButton from '../components/ConfirmButton.vue';
 import EmptyState from '../components/EmptyState.vue';
 import JobOutput from '../components/JobOutput.vue';
 import { getJson, post } from '../api.js';
-import { state } from '../store.js';
+import { serverPath, state } from '../store.js';
 import { attempt } from '../toast.js';
 
 const data = ref(null);
@@ -121,7 +121,7 @@ onUnmounted(() => clearInterval(clock));
       A restart is needed to finish installing
       <template v-if="data.reboot.packages.length">{{ data.reboot.packages.slice(0, 6).join(', ') }}{{ data.reboot.packages.length > 6 ? '…' : '' }}</template>
       <template v-else>earlier updates</template>.
-      <RouterLink to="/system">Restart from the System page</RouterLink>.
+      <RouterLink :to="serverPath('/system')">Restart from the System page</RouterLink>.
     </p>
 
     <JobOutput ref="jobOutput" class="panel" @running="jobRunning = $event" @done="recheck" />

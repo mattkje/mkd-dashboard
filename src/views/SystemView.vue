@@ -7,6 +7,7 @@ import JobOutput from '../components/JobOutput.vue';
 import Sparkline from '../components/Sparkline.vue';
 import { getJson, post } from '../api.js';
 import { bytes, dateTime, duration, percent } from '../format.js';
+import { serverPath, state } from '../store.js';
 import { attempt } from '../toast.js';
 
 const STATS_MS = 5000;
@@ -71,6 +72,7 @@ async function loadUpdates() {
 }
 
 async function loadAlerts() {
+  if (state.server) return;
   alerts.value = await getJson('/api/alerts').catch(() => alerts.value);
 }
 
@@ -172,7 +174,7 @@ onUnmounted(() => {
             </template>
             <template v-else>Everything is up to date.</template>
           </p>
-          <RouterLink to="/updates" class="btn">{{ updates.total ? 'Review and install' : 'Open updates' }}</RouterLink>
+          <RouterLink :to="serverPath('/updates')" class="btn">{{ updates.total ? 'Review and install' : 'Open updates' }}</RouterLink>
         </template>
         <p v-else-if="updates" class="muted">{{ updates.error }}</p>
         <div v-else class="skeleton" style="height: 80px"></div>
@@ -180,7 +182,8 @@ onUnmounted(() => {
       </section>
 
       <div class="side">
-        <section class="panel">
+        <!-- Alerts are sent by this dashboard, for every server; agents have none of their own. -->
+        <section v-if="!state.server" class="panel">
           <h3>Alerts</h3>
           <template v-if="alerts">
             <p v-if="alerts.channels.length" class="muted">

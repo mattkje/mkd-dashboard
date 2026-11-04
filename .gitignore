@@ -6,6 +6,7 @@ dist/
 # Your own setup, not part of the project.
 apps.json
 apps.json.bak
+servers.json
 .env
 /env
 /public/icons/
