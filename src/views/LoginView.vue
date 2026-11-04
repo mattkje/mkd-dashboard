@@ -29,7 +29,7 @@ async function login() {
 <template>
   <main class="login-page">
     <form class="login-card" @submit.prevent="login">
-      <div class="login-mark" aria-hidden="true"><span></span></div>
+      <img src="/logo.svg" alt="" class="login-mark">
       <h1>MKD</h1>
       <p class="muted">Sign in to the control panel</p>
       <p v-if="!state.session.enabled" class="error-text">Login is disabled: ADMIN_PASSWORD is not set on the server.</p>
@@ -64,16 +64,7 @@ async function login() {
   box-shadow: var(--shadow);
   text-align: center;
 }
-.login-mark {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  margin: 0 auto 4px;
-  border-radius: 12px;
-  background: var(--text);
-}
-.login-mark span { width: 16px; height: 16px; border-radius: 50%; background: var(--bg); }
+.login-mark { width: 52px; height: 52px; margin: 0 auto 4px; }
 h1 { margin: 0; font-size: 24px; }
 .muted { margin: -8px 0 8px; }
 .btn.primary { height: 40px; }

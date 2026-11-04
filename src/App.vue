@@ -60,7 +60,7 @@ onMounted(async () => {
     <LoginView v-if="!state.session.authed" />
     <div v-else class="shell">
       <header class="nav">
-        <RouterLink to="/" class="brand">{{ state.config?.title ?? 'MKD' }}</RouterLink>
+        <RouterLink to="/" class="brand"><img src="/logo.svg" alt="" class="brand-logo">{{ state.config?.title ?? 'MKD' }}</RouterLink>
         <!-- On phones this becomes a tab bar fixed to the bottom of the screen. -->
         <nav class="tabs">
           <RouterLink v-for="item in NAV" :key="item.to" :to="item.to">
