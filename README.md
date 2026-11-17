@@ -136,8 +136,9 @@ App on another server, e.g. over Tailscale:
 | `icon` | Name from [dashboard-icons](https://github.com/homarr-labs/dashboard-icons) (e.g. `gitea`), or an image URL. Falls back to a letter |
 | `checkUrl` | Override the URL used for the status check. `tcp://host:port` only checks that the port accepts connections, for apps that don't speak HTTP (e.g. a Minecraft server) |
 | `service` | systemd unit for a local app, e.g. `gitea` or `gitea.service`. Enables service controls and logs. Re-run `install.sh` after changing it |
+| `container` | Docker container behind a local app, e.g. `jellyfin-jellyfin-1`. While it is stopped cleanly the app is shown greyed out instead of down |
 
-An app counts as "up" if it returns any HTTP response (including 401 or a redirect).
+An app counts as "up" if it returns any HTTP response (including 401 or a redirect). An app that doesn't respond is shown greyed out ("stopped") rather than red when its `service` was stopped cleanly or is disabled, or its `container` exited cleanly (exit code 0, 130, 137 or 143 without an out-of-memory kill). Failed units, crashed containers and running apps that don't respond are red. Stopped apps send no alerts and don't count as downtime.
 
 ## Environment
 

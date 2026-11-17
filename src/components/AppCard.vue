@@ -12,6 +12,10 @@ const emit = defineEmits(['edit']);
 const url = computed(() => appUrl(props.app));
 const icon = computed(() => iconSrc(props.app.icon));
 const status = computed(() => (props.editing ? null : state.status[props.app.id]));
+// Disabled service: shown greyed out, not as a fault.
+const off = computed(() => Boolean(status.value?.off));
+const dotClass = computed(() => status.value && (status.value.up ? 'up' : off.value ? 'off' : 'down'));
+const dotTitle = computed(() => status.value && (status.value.up ? 'Running' : off.value ? 'Stopped' : 'Not responding'));
 const hasService = computed(() => Boolean(props.app.service && !props.app.url));
 const open = computed(() => state.openMenu === props.app.id);
 // Show the letter until the icon has loaded, and keep it if the icon fails.
@@ -37,7 +41,7 @@ function toggleMenu() {
 </script>
 
 <template>
-  <div class="app" :class="{ down: status && !status.up, open, 'has-service': hasService && !editing, editing }">
+  <div class="app" :class="{ down: status && !status.up && !off, off, open, 'has-service': hasService && !editing, editing }">
     <!-- The link covers the whole tile; the service menu button sits above it. -->
     <button
       v-if="editing"
@@ -62,8 +66,8 @@ function toggleMenu() {
       </div>
       <i
         class="dot"
-        :class="status && (status.up ? 'up' : 'down')"
-        :title="status && (status.up ? 'Running' : 'Not responding')"
+        :class="dotClass"
+        :title="dotTitle"
       ></i>
     </div>
     <div class="name">{{ app.name }}</div>

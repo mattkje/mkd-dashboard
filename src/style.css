@@ -417,6 +417,7 @@ h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .app:hover .dot, .app:focus-within .dot, .app.open .dot { border-color: var(--hover); }
 .dot.up { background: var(--up); }
 .dot.down { background: var(--down); }
+.dot.off { background: var(--muted); }
 
 .name {
   font-weight: 550;
@@ -436,6 +437,8 @@ h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
 .app.down .icon { opacity: 0.45; filter: grayscale(1); }
 .app.down .name { color: var(--muted); }
+.app.off .icon { opacity: 0.35; filter: grayscale(1); }
+.app.off .name, .app.off .desc { color: var(--muted); }
 
 /* Service menu (only when unlocked) */
 

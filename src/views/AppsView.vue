@@ -37,23 +37,29 @@ const matches = computed(() => {
 
 const counts = computed(() => {
   const results = apps.value.map((app) => state.status[app.id]).filter(Boolean);
-  return { total: results.length, up: results.filter((s) => s.up).length };
+  return {
+    total: results.length,
+    up: results.filter((s) => s.up).length,
+    off: results.filter((s) => !s.up && s.off).length,
+  };
 });
 
 const summary = computed(() => {
   if (state.statusError) return 'Could not check status';
   if (!state.statusLoaded) return 'Checking…';
-  const { up, total } = counts.value;
-  return up === total ? `All ${total} apps running` : `${total - up} of ${total} apps not responding`;
+  const { up, off, total } = counts.value;
+  const down = total - up - off;
+  const disabled = off ? ` · ${off} stopped` : '';
+  return down === 0 ? `All ${total - off} apps running${disabled}` : `${down} of ${total - off} apps not responding${disabled}`;
 });
 
 const summaryState = computed(() => {
-  if (state.statusError || (state.statusLoaded && counts.value.up < counts.value.total)) return 'bad';
+  if (state.statusError || (state.statusLoaded && counts.value.up + counts.value.off < counts.value.total)) return 'bad';
   return state.statusLoaded ? 'good' : '';
 });
 
 function downCount(group) {
-  return group.apps.filter((app) => state.status[app.id] && !state.status[app.id].up).length;
+  return group.apps.filter((app) => state.status[app.id] && !state.status[app.id].up && !state.status[app.id].off).length;
 }
 
 function onSearchKeydown(e) {

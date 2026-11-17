@@ -48,6 +48,11 @@ async function checkApps(now) {
   const status = await apps.statusAll();
   for (const app of config.groups.flatMap((g) => g.apps)) {
     const up = Boolean(status[app.id]?.up);
+    // Disabled services are neither downtime nor alerts; their uptime bar stays empty.
+    if (status[app.id]?.off) {
+      appState.delete(app.name);
+      continue;
+    }
     (history.apps[app.name] ||= []).push([now, up ? 1 : 0]);
     // The first check after a start is the baseline: apps that are already down don't alert again.
     if (!appState.has(app.name)) {

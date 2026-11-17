@@ -20,9 +20,13 @@ const CHECK_TIMEOUT_MS = Number(process.env.CHECK_TIMEOUT_MS) || 4000;
 // A custom systemctl is run without sudo.
 const SYSTEMCTL = process.env.SYSTEMCTL || 'systemctl';
 const JOURNALCTL = process.env.JOURNALCTL || 'journalctl';
+const DOCKER = process.env.DOCKER || 'docker';
 
 const ACTIONS = new Set(['start', 'stop', 'restart', 'enable', 'disable']);
 const UNIT_PATTERN = /^[A-Za-z0-9@._:-]+$/;
+const CONTAINER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
+// Exit codes of a deliberate stop: normal exit, SIGINT, SIGTERM, and SIGKILL after docker stop's timeout.
+const CLEAN_EXIT = new Set([0, 130, 137, 143]);
 
 // "${TAILNET}" in apps.json becomes that environment variable (from .env or the service's
 // env file), so host names can stay out of the file. Secrets are never filled in.
@@ -47,7 +51,7 @@ function loadConfig({ raw: keepPlaceholders = false } = {}) {
 
 const APP_FIELDS = {
   name: 'string', description: 'string', port: 'number', scheme: 'string', path: 'string',
-  url: 'string', icon: 'string', checkUrl: 'string', service: 'string',
+  url: 'string', icon: 'string', checkUrl: 'string', service: 'string', container: 'string',
 };
 
 function cleanApp(raw, where) {
@@ -71,6 +75,8 @@ function cleanApp(raw, where) {
   if (app.scheme && !['http', 'https'].includes(app.scheme)) throw new HttpError(400, `${app.name}: scheme must be http or https`);
   if (app.checkUrl && !/^(https?|tcp):\/\/\S+$/.test(app.checkUrl)) throw new HttpError(400, `${app.name}: checkUrl must be a full URL`);
   if (app.service && !UNIT_PATTERN.test(app.service)) throw new HttpError(400, `${app.name}: invalid service name`);
+  if (app.container && !CONTAINER_PATTERN.test(app.container)) throw new HttpError(400, `${app.name}: invalid container name`);
+  if (app.url) delete app.container;
   return app;
 }
 
@@ -168,15 +174,41 @@ async function serviceState(unit) {
   return { unit, active: props.ActiveState, sub: props.SubState, enabled: props.UnitFileState };
 }
 
+// Docker container behind a local app; reading it needs the docker group (see deploy/install.sh).
+async function containerState(name) {
+  const result = await run(DOCKER, ['inspect', '--format', '{{json .State}}', name]);
+  if (result.code === 'ENOENT') return { name, error: 'docker not available' };
+  if (!result.ok) return { name, error: /no such/i.test(result.stderr || '') ? 'container not found' : result.stderr || 'docker failed' };
+  const s = JSON.parse(result.stdout);
+  return { name, state: s.Status, exitCode: s.ExitCode, oomKilled: s.OOMKilled };
+}
+
+// Stopped on purpose is not a fault: a cleanly stopped unit, or a disabled/masked one that isn't running;
+// a container that exited cleanly or was never started. Failed units, crashed containers,
+// and running ones that don't respond still count as down.
+function isOff(service, container) {
+  if (service && (service.active === 'inactive'
+    || (['disabled', 'masked'].includes(service.enabled) && service.active === 'failed'))) return true;
+  if (container && (container.state === 'created'
+    || (container.state === 'exited' && CLEAN_EXIT.has(container.exitCode) && !container.oomKilled))) return true;
+  return false;
+}
+
 async function statusAll() {
   const apps = loadConfig().groups.flatMap((g) => g.apps);
   const results = await Promise.all(apps.map(async (app) => {
     const unit = unitName(app);
-    const [http, service] = await Promise.all([
+    const hasContainer = app.container && !app.url;
+    const [http, service, container] = await Promise.all([
       probe(checkTarget(app)),
       unit ? serviceState(unit) : null,
+      hasContainer ? containerState(app.container) : null,
     ]);
-    return service ? { ...http, service } : http;
+    const result = { ...http };
+    if (service) result.service = service;
+    if (container) result.container = container;
+    if (!http.up && isOff(service, container)) result.off = true;
+    return result;
   }));
   return Object.fromEntries(apps.map((app, i) => [app.id, results[i]]));
 }

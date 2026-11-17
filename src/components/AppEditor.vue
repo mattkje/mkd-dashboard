@@ -8,7 +8,7 @@ const props = defineProps({ target: Object, groups: Array });
 const emit = defineEmits(['save', 'remove', 'close']);
 
 const dialog = ref(null);
-const EMPTY = { name: '', description: '', kind: 'local', port: '', scheme: 'http', path: '', url: '', icon: '', service: '', checkUrl: '', group: 0 };
+const EMPTY = { name: '', description: '', kind: 'local', port: '', scheme: 'http', path: '', url: '', icon: '', service: '', container: '', checkUrl: '', group: 0 };
 
 const form = reactive({ ...EMPTY });
 const error = ref('');
@@ -44,6 +44,7 @@ function save() {
     app.scheme = form.scheme;
     app.path = String(form.path).trim();
     app.service = String(form.service).trim();
+    app.container = String(form.container).trim();
   }
   for (const key of Object.keys(app)) if (app[key] === '') delete app[key];
   if (app.scheme === 'http') delete app.scheme;
@@ -93,6 +94,10 @@ function save() {
           <label>systemd service
             <input v-model="form.service" class="input" placeholder="jellyfin">
             <small class="muted">Enables start/stop and logs. Re-run <code>deploy/install.sh</code> on the server after changing it.</small>
+          </label>
+          <label>Docker container
+            <input v-model="form.container" class="input" placeholder="jellyfin-jellyfin-1">
+            <small class="muted">Shown greyed out instead of down while the container is stopped.</small>
           </label>
         </template>
         <label v-else>URL<input v-model="form.url" class="input" placeholder="https://other-server.tailnet.ts.net:3000"></label>
