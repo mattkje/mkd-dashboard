@@ -153,6 +153,7 @@ onUnmounted(() => clearInterval(clock));
           <div class="item-name">
             <strong :title="item.name">{{ item.name }}</strong>
             <span v-if="item.security" class="chip bad">security</span>
+            <span v-if="item.keptBack" class="chip warn" title="The dashboard only installs updates that remove nothing">kept back</span>
             <span v-if="item.containers" class="muted small">used by {{ item.containers.join(', ') }}</span>
             <span v-if="item.note" class="muted small">{{ item.note }}</span>
           </div>

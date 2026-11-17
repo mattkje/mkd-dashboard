@@ -13,7 +13,9 @@ case "${1:-}" in
     if has fwupdmgr; then fwupdmgr refresh --force || true; fi
     ;;
   # Keep locally changed config files; take the package default for untouched ones.
-  updates-install) apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade ;;
+  # --with-new-pkgs installs the new packages an update needs (a new kernel, a new library), like
+  # `apt upgrade`; it never removes any, so updates that would are left for a deliberate full-upgrade.
+  updates-install) apt-get -y --with-new-pkgs -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade ;;
   snap-refresh) snap refresh ;;
   flatpak-update) flatpak update -y --noninteractive ;;
   firmware-update) fwupdmgr update -y --no-reboot-check ;;

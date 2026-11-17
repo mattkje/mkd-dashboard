@@ -17,13 +17,28 @@ const GIT_ENV = { GIT_TERMINAL_PROMPT: '0', GIT_SSH_COMMAND: 'ssh -o BatchMode=y
 
 const missing = (result) => result.code === 'ENOENT';
 
+// Packages the dashboard's upgrade can't install, because they would remove another package
+// (a dry run of the helper's command, which needs no root).
+async function aptKeptBack() {
+  const result = await run('apt-get', ['-s', '--with-new-pkgs', 'upgrade']);
+  const block = result.stdout.match(/kept back:\n((?:[ \t]+.*\n?)+)/);
+  return new Set(block ? block[1].trim().split(/\s+/) : []);
+}
+
 // "pkg/noble-security 1.2 amd64 [upgradable from: 1.1]"
 async function apt() {
   const result = await run('apt', ['list', '--upgradable']);
   if (missing(result) && !DEV) return { available: false };
+  const keptBack = await aptKeptBack();
   const items = result.stdout.split('\n').flatMap((line) => {
     const match = line.match(/^([^/\s]+)\/(\S+)\s+(\S+)\s+\S+\s+\[upgradable from: ([^\]]+)\]/);
-    return match ? [{ name: match[1], current: match[4], latest: match[3], security: /-security/.test(match[2]) }] : [];
+    if (!match) return [];
+    const item = { name: match[1], current: match[4], latest: match[3], security: /-security/.test(match[2]) };
+    if (keptBack.has(item.name)) {
+      item.keptBack = true;
+      item.note = 'needs other packages removed: run sudo apt full-upgrade in a terminal';
+    }
+    return [item];
   });
   return { available: true, items, canUpdate: true };
 }
