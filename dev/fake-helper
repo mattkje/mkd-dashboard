@@ -25,6 +25,14 @@ case "${1:-}" in
     echo "fake-helper: would run $1"
     sleep 1
     ;;
-  reboot | poweroff | dashboard-restart) echo "fake-helper: would $1 now" ;;
-  *) echo "usage: $0 updates-refresh|updates-install|snap-refresh|flatpak-update|firmware-update|dashboard-restart|reboot|poweroff" >&2; exit 2 ;;
+  reboot | poweroff | dashboard-restart | reboot-schedule | shutdown-cancel) echo "fake-helper: would $1 now" ;;
+  cleanup)
+    echo "Free before: 41G"
+    for step in "apt-get autoremove" "apt-get clean" "journalctl --vacuum-time=14d"; do
+      echo "fake-helper: $step"
+      sleep 0.6
+    done
+    echo "Free after: 43G"
+    ;;
+  *) echo "usage: $0 updates-refresh|updates-install|snap-refresh|flatpak-update|firmware-update|dashboard-restart|reboot|poweroff|reboot-schedule|shutdown-cancel|cleanup" >&2; exit 2 ;;
 esac

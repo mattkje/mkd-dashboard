@@ -5,6 +5,7 @@
 #   pty-helper.py COMMAND [ARGS...]
 #
 # stdin/stdout carry the terminal data; fd 3 receives resize requests as "cols rows" lines.
+# PTY_COLS and PTY_ROWS give the starting size, so the program never starts at a default 80x24.
 import fcntl
 import os
 import pty
@@ -17,10 +18,32 @@ import termios
 STDIN, STDOUT, CONTROL = 0, 1, 3
 
 command = sys.argv[1:]
-pid, fd = pty.fork()
+
+
+def set_size(target, cols, rows):
+    fcntl.ioctl(target, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
+
+
+# The size is set before the fork, so the program reads it at startup and later resizes can't race it.
+master, slave = pty.openpty()
+try:
+    set_size(slave, int(os.environ.pop('PTY_COLS')), int(os.environ.pop('PTY_ROWS')))
+except (KeyError, ValueError):
+    pass
+
+pid = os.fork()
 if pid == 0:
+    os.close(master)
     os.close(CONTROL)
+    os.setsid()
+    fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
+    for target in (0, 1, 2):
+        os.dup2(slave, target)
+    if slave > 2:
+        os.close(slave)
     os.execvp(command[0], command)
+os.close(slave)
+fd = master
 
 
 def write_all(target, data):
@@ -64,7 +87,7 @@ while True:
         while b'\n' in pending:
             line, pending = pending.split(b'\n', 1)
             cols, rows = (int(n) for n in line.split())
-            fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
+            set_size(fd, cols, rows)
 
 _, status = os.waitpid(pid, 0)
 sys.exit(os.waitstatus_to_exitcode(status))

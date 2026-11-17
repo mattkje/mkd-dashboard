@@ -7,13 +7,16 @@ const { spawn } = require('node:child_process');
 const { StringDecoder } = require('node:string_decoder');
 const { WebSocketServer } = require('ws');
 const auth = require('./auth');
-const { HttpError, childEnv, run } = require('./http');
+const { HttpError, childEnv, readJson, run } = require('./http');
 
 const PYTHON = process.env.PYTHON || 'python3';
 const TMUX = process.env.TMUX_BIN || 'tmux';
 const HELPER = path.join(__dirname, 'pty-helper.py');
 const SHELL = process.env.SHELL || os.userInfo().shell || '/bin/bash';
 const SESSION_PATTERN = /^[\w.-]{1,40}$/;
+const HISTORY_LINES = 10000;
+// What a new session can start with (?start=…). A fixed list, so the URL can't carry a command.
+const STARTERS = { claude: 'claude' };
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
 const open = new Set();
@@ -40,6 +43,21 @@ async function sessions() {
   return { tmux: true, sessions: list.sort((a, b) => a.created - b.created) };
 }
 
+async function renameSession(name, req) {
+  const { to } = await readJson(req);
+  checkSession(to);
+  const result = await run(TMUX, ['rename-session', '-t', `=${checkSession(name)}`, to]);
+  if (!result.ok) throw new HttpError(result.stderr.includes('duplicate') ? 409 : 404, result.stderr || 'no such session');
+  return { ok: true };
+}
+
+// The session's scrollback as plain text, for selecting and copying (wrapped lines joined).
+async function captureSession(name) {
+  const result = await run(TMUX, ['capture-pane', '-p', '-J', '-S', `-${HISTORY_LINES}`, '-t', `=${checkSession(name)}:`]);
+  if (!result.ok) throw new HttpError(404, result.stderr || 'no such session');
+  return { text: result.stdout.replace(/\s+$/, '') };
+}
+
 async function killSession(name) {
   const result = await run(TMUX, ['kill-session', '-t', `=${checkSession(name)}`]);
   if (!result.ok) throw new HttpError(404, result.stderr || 'no such session');
@@ -47,15 +65,27 @@ async function killSession(name) {
 }
 
 // Starts the session detached if needed, then returns the command that attaches to it.
-async function tmuxCommand(name) {
+async function tmuxCommand(name, size, start) {
   const target = `=${name}`;
   if (!(await run(TMUX, ['has-session', '-t', target])).ok) {
-    const created = await run(TMUX, ['new-session', '-d', '-s', name, '-c', os.homedir()]);
+    const args = ['new-session', '-d', '-s', name, '-c', os.homedir()];
+    if (size) args.push('-x', String(size.cols), '-y', String(size.rows));
+    const created = await run(TMUX, args);
     if (!created.ok) throw new Error(created.stderr || 'tmux new-session failed');
-    // Mouse mode lets the wheel scroll tmux history in the browser.
-    await run(TMUX, ['set-option', '-t', target, 'mouse', 'on']);
+    // Typed into the shell rather than run as the session's command, so the shell stays when it exits.
+    if (STARTERS[start]) await run(TMUX, ['send-keys', '-t', `${target}:`, STARTERS[start], 'Enter']);
   }
+  // Every attach, so sessions made before these settings get them too. Mouse mode lets the wheel
+  // scroll tmux history; set-clipboard sends text selected with the mouse to the browser (OSC 52).
+  await run(TMUX, ['set-option', '-t', target, 'mouse', 'on']);
+  await run(TMUX, ['set-option', '-s', 'set-clipboard', 'on']);
   return [TMUX, 'attach-session', '-t', target];
+}
+
+function parseSize(params) {
+  const cols = Math.trunc(Number(params.get('cols')));
+  const rows = Math.trunc(Number(params.get('rows')));
+  return cols > 0 && cols <= 1000 && rows > 0 && rows <= 1000 ? { cols, rows } : null;
 }
 
 // Cross-site WebSocket hijacking guard: the page must come from the same host.
@@ -73,25 +103,33 @@ function handleUpgrade(req, socket, head) {
     socket.end('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
     return;
   }
-  const name = new URL(req.url, 'http://x').searchParams.get('session');
+  const params = new URL(req.url, 'http://x').searchParams;
+  const name = params.get('session');
   if (name && !SESSION_PATTERN.test(name)) {
     socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
     return;
   }
   wss.handleUpgrade(req, socket, head, (ws) => {
-    connect(ws, auth.sessionKey(req), name).catch((err) => {
+    connect(ws, auth.sessionKey(req), name, parseSize(params), params.get('start')).catch((err) => {
       ws.send(`\r\nCould not start terminal: ${err.message}\r\n`);
       ws.close();
     });
   });
 }
 
-async function connect(ws, session, name) {
-  const command = name && (await hasTmux()) ? await tmuxCommand(name) : [SHELL, '-l'];
+async function connect(ws, session, name, size, start) {
+  // The browser starts typing and resizing as soon as the socket opens, while tmux may still be
+  // starting: hold those messages until the shell is there, instead of losing them.
+  const early = [];
+  const hold = (raw) => early.push(raw);
+  ws.on('message', hold);
+
+  const command = name && (await hasTmux()) ? await tmuxCommand(name, size, start) : [SHELL, '-l'];
   if (ws.readyState !== ws.OPEN) return;
+  const sizeEnv = size ? { PTY_COLS: String(size.cols), PTY_ROWS: String(size.rows) } : {};
   const child = spawn(PYTHON, [HELPER, ...command], {
     cwd: os.homedir(),
-    env: childEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor' }),
+    env: childEnv({ TERM: 'xterm-256color', COLORTERM: 'truecolor', ...sizeEnv }),
     stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
   });
   const entry = { ws, session };
@@ -117,7 +155,7 @@ async function connect(ws, session, name) {
     ws.close(4000, 'ended');
   });
 
-  ws.on('message', (raw) => {
+  const handle = (raw) => {
     let message;
     try {
       message = JSON.parse(raw);
@@ -130,7 +168,10 @@ async function connect(ws, session, name) {
       const rows = Math.trunc(message.rows);
       if (cols > 0 && cols <= 1000 && rows > 0 && rows <= 1000) child.stdio[3].write(`${cols} ${rows}\n`);
     }
-  });
+  };
+  ws.off('message', hold);
+  ws.on('message', handle);
+  early.forEach(handle);
   // For tmux this only detaches the client; the session keeps running.
   ws.on('close', () => {
     open.delete(entry);
@@ -144,4 +185,4 @@ auth.onLogout((session) => {
   for (const entry of open) if (entry.session === session) entry.ws.close();
 });
 
-module.exports = { handleUpgrade, sessions, killSession };
+module.exports = { handleUpgrade, sessions, killSession, renameSession, captureSession };

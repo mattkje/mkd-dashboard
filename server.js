@@ -64,7 +64,12 @@ const routes = [
   ['POST', /^\/api\/alerts\/test$/, () => alerts.test()],
 
   ['GET', /^\/api\/system$/, () => system.stats()],
-  ['POST', /^\/api\/system\/power\/(\w+)$/, (req, res, [action]) => system.power(action)],
+  ['POST', /^\/api\/system\/power\/([\w-]+)$/, (req, res, [action]) => system.control(action)],
+  ['GET', /^\/api\/system\/processes$/, (req, res, params, url) => system.processes(param(url, 'sort'))],
+  ['POST', /^\/api\/system\/processes\/(\d+)\/kill$/, (req, res, [pid]) => system.killProcess(pid)],
+  ['GET', /^\/api\/system\/journal$/, (req, res, params, url) => (
+    follow(url) ? system.followJournal(lines(url), res) : system.journal(lines(url))
+  )],
   ['GET', /^\/api\/power$/, () => power.status()],
   ['GET', /^\/api\/servers$/, () => servers.list()],
   ['GET', /^\/api\/updates$/, () => updates.list()],
@@ -98,6 +103,8 @@ const routes = [
 
   ['GET', /^\/api\/terminal\/sessions$/, () => terminal.sessions()],
   ['POST', /^\/api\/terminal\/sessions\/([\w.-]+)\/kill$/, (req, res, [name]) => terminal.killSession(name)],
+  ['POST', /^\/api\/terminal\/sessions\/([\w.-]+)\/rename$/, (req, res, [name]) => terminal.renameSession(name, req)],
+  ['GET', /^\/api\/terminal\/sessions\/([\w.-]+)\/capture$/, (req, res, [name]) => terminal.captureSession(name)],
 ];
 
 async function handleApi(req, res, url) {

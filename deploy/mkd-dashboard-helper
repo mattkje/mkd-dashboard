@@ -21,8 +21,19 @@ case "${1:-}" in
   dashboard-restart) systemctl restart mkd-dashboard.service ;;
   reboot) systemctl reboot ;;
   poweroff) systemctl poweroff ;;
+  # A restart at 04:00, when nobody is using the apps. Fixed time: the helper takes no input.
+  reboot-schedule) shutdown -r 04:00 ;;
+  shutdown-cancel) shutdown -c ;;
+  # Frees disk space: unused packages, the apt download cache and journal entries older than two weeks.
+  cleanup)
+    df -h / | tail -1 | awk '{print "Free before: " $4}'
+    apt-get -y autoremove --purge
+    apt-get clean
+    journalctl --vacuum-time=14d
+    df -h / | tail -1 | awk '{print "Free after: " $4}'
+    ;;
   *)
-    echo "usage: $0 updates-refresh|updates-install|snap-refresh|flatpak-update|firmware-update|dashboard-restart|reboot|poweroff" >&2
+    echo "usage: $0 updates-refresh|updates-install|snap-refresh|flatpak-update|firmware-update|dashboard-restart|reboot|poweroff|reboot-schedule|shutdown-cancel|cleanup" >&2
     exit 2
     ;;
 esac
