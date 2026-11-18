@@ -1,6 +1,7 @@
 <script setup>
 // The camera's own dashboard, served through this dashboard's reverse proxy (/cam-ui/).
-// Because it loads over this origin's HTTPS, its microphone (push-to-talk) works.
+// Because it loads over this origin's HTTPS, its microphone (push-to-talk) works. It renders
+// full-bleed so it reads as this dashboard's own page, the way an agent server's pages do.
 </script>
 
 <template>
@@ -15,11 +16,11 @@
 <style scoped>
 .cam-frame {
   display: block;
+  border: 0;
+  background: transparent;
   width: 100%;
-  height: calc(100vh - 120px);
-  min-height: 480px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: #000;
+  /* fill the area under the top nav (nav is ~38px tall + 28px margin) down to the viewport */
+  height: calc(100vh - 110px);
+  min-height: 520px;
 }
 </style>
