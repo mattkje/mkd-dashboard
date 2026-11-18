@@ -96,13 +96,6 @@ const routes = [
     req, param(url, 'path'), param(url, 'name'), param(url, 'overwrite') === '1',
   )],
 
-  ['GET', /^\/api\/camera$/, () => camera.status()],
-  ['GET', /^\/api\/camera\/live$/, (req, res) => camera.live(req, res)],
-  ['POST', /^\/api\/camera\/photo$/, () => camera.photo()],
-  ['POST', /^\/api\/camera\/record\/start$/, () => camera.startRecording()],
-  ['POST', /^\/api\/camera\/record\/stop$/, () => camera.stopRecording()],
-  ['GET', /^\/api\/camera\/captures\/([\w.-]+)$/, (req, res, [name], url) => camera.capture(name, req, res, url.searchParams.has('inline'))],
-
   ['GET', /^\/api\/terminal\/sessions$/, () => terminal.sessions()],
   ['POST', /^\/api\/terminal\/sessions\/([\w.-]+)\/kill$/, (req, res, [name]) => terminal.killSession(name)],
 ];
@@ -174,6 +167,13 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
     if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
+    // The camera's own dashboard, reverse-proxied so it's reachable anywhere this one is
+    // (and over HTTPS, so its mic works). Behind the login, like everything else.
+    if (!agent.enabled && camera.enabled && (url.pathname === '/cam-ui' || url.pathname.startsWith('/cam-ui/'))) {
+      if (!auth.isAuthed(req)) { res.writeHead(401); return res.end('not logged in'); }
+      if (url.pathname === '/cam-ui') { res.writeHead(302, { Location: '/cam-ui/' }); return res.end(); }
+      return camera.proxy(req, res, url.pathname.slice('/cam-ui'.length) + (url.search || ''));
+    }
     if (agent.enabled) {
       res.writeHead(404);
       return res.end();

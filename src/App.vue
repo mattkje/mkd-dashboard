@@ -17,17 +17,21 @@ const NAV = [
   { to: '/power', label: 'Power', icon: 'M13 2 4 14h7l-1 8 9-12h-7z' },
   { to: '/updates', label: 'Updates', remote: true, icon: 'M12 3v12M7 10l5 5 5-5M5 21h14' },
   { to: '/docker', label: 'Docker', icon: 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8' },
-  { to: '/surveillance', label: 'Surveillance', icon: 'M3 7h13v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 10l5-3v8l-5-3M6 19h6' },
   { to: '/files', label: 'Files', remote: true, icon: 'M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z' },
   { to: '/terminal', label: 'Terminal', icon: 'M4 5h16v14H4zM8 10l3 2-3 2M13 15h3' },
 ];
 
+// The camera is a "web" server: selecting it opens its own dashboard full-screen (CameraView),
+// so there are no agent tabs to show for it.
+const currentWeb = computed(() => state.servers.find((s) => s.id === state.server)?.web);
 // Another server shows only the pages its agent answers (see server/agent.js).
-const nav = computed(() => NAV.filter((item) => !state.server || item.remote).map((item) => ({ ...item, to: serverPath(item.to) })));
+const nav = computed(() => (currentWeb.value ? [] : NAV.filter((item) => !state.server || item.remote).map((item) => ({ ...item, to: serverPath(item.to) }))));
 const serverName = computed(() => state.servers.find((s) => s.id === state.server)?.name);
 
 // Stays on the same page when the other server has it, otherwise goes to its Apps page.
 function switchServer(id) {
+  const picked = state.servers.find((s) => s.id === id);
+  if (picked && picked.web) { router.push('/camera'); return; }
   const page = route.path.replace(/^\/s\/[^/]+/, '') || '/';
   const item = NAV.find((n) => n.to === page);
   const target = item && (item.remote || !id) ? page : '/';

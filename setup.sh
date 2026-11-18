@@ -4,7 +4,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/mattkje/mkd-dashboard/HEAD/setup.sh | bash
 #
 # Run it as the user the dashboard should run as (not root); it uses sudo where needed.
-# It asks a few questions, installs what is missing (git, Node.js, Python, tmux, ffmpeg,
+# It asks a few questions, installs what is missing (git, Node.js, Python, tmux,
 # Tailscale), clones the repo, writes /etc/mkd-dashboard.env, installs the service
 # and publishes it on your tailnet. Run it again later to update.
 set -euo pipefail
@@ -108,14 +108,14 @@ confirm "Publish the dashboard on your tailnet with tailscale serve (HTTPS on po
 # --- Packages ------------------------------------------------------------------
 
 bold "Installing packages"
-packages=(git ca-certificates curl python3 tmux ffmpeg)
+packages=(git ca-certificates curl python3 tmux)
 missing=()
 for p in "${packages[@]}"; do dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p"); done
 if [ ${#missing[@]} -gt 0 ]; then
   sudo apt-get update -qq
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${missing[@]}"
 fi
-info "git, python3, tmux, ffmpeg: ok"
+info "git, python3, tmux: ok"
 
 # Node.js from NodeSource when the system one is missing or older than Vite needs.
 if ! node_ok; then

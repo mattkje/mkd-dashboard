@@ -13,7 +13,7 @@ const router = createRouter({
     { path: '/power', component: () => import('./views/PowerView.vue'), meta: { title: 'Power' } },
     { path: '/updates', component: () => import('./views/UpdatesView.vue'), meta: { title: 'Updates' } },
     { path: '/docker', component: () => import('./views/DockerView.vue'), meta: { title: 'Docker' } },
-    { path: '/surveillance', component: () => import('./views/SurveillanceView.vue'), meta: { title: 'Surveillance' } },
+    { path: '/camera', component: () => import('./views/CameraView.vue'), meta: { title: 'Camera' } },
     { path: '/files', component: () => import('./views/FilesView.vue'), meta: { title: 'Files' } },
     { path: '/terminal', component: () => import('./views/TerminalView.vue'), meta: { title: 'Terminal' } },
     // Another server's pages (see server/servers.js): the same views, talking to its agent.
@@ -27,7 +27,8 @@ const router = createRouter({
 
 // Switching server starts its pages from scratch (apps, statuses, update counts).
 router.beforeEach((to) => {
-  const server = typeof to.params.server === 'string' ? to.params.server : '';
+  // /camera is the proxied camera dashboard; treat it as the 'cam' server so the dropdown reflects it.
+  const server = typeof to.params.server === 'string' ? to.params.server : (to.path === '/camera' ? 'cam' : '');
   if (server !== state.server) {
     state.server = server;
     state.config = null;

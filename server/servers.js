@@ -10,6 +10,7 @@ const http = require('node:http');
 const https = require('node:https');
 const path = require('node:path');
 const { HttpError } = require('./http');
+const camera = require('./camera');
 
 const SERVERS_FILE = process.env.SERVERS_FILE || path.join(__dirname, '..', 'servers.json');
 const ID = /^[a-z0-9-]{1,32}$/;
@@ -33,9 +34,13 @@ function load() {
   });
 }
 
-// What the browser may know: no URLs with ports, no tokens.
+// What the browser may know: no URLs with ports, no tokens. The camera (if configured) is a
+// web entry rather than an agent — selecting it opens its proxied dashboard (see server/camera.js).
 function list() {
-  return load().map((s) => ({ id: s.id, name: s.name || s.id, host: new URL(s.url).hostname }));
+  const servers = load().map((s) => ({ id: s.id, name: s.name || s.id, host: new URL(s.url).hostname }));
+  const cam = camera.info();
+  if (cam) servers.push(cam);
+  return servers;
 }
 
 function find(id) {
