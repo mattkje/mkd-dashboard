@@ -87,9 +87,10 @@ const list = wrap(async (p) => {
   return { path: dir, parent: dir === ROOT ? null : path.dirname(dir), home: HOME, root: ROOT, entries };
 });
 
-// Supports Range requests, so videos can be scrubbed in the preview.
-const download = wrap(async (p, req, res, inline) => {
-  const file = await resolve(p);
+const download = wrap(async (p, req, res, inline) => sendFile(await resolve(p), req, res, inline));
+
+// Sends a file, with Range support so videos can seek. `inline` shows previewable types in the browser.
+async function sendFile(file, req, res, inline) {
   const st = await fsp.stat(file);
   if (!st.isFile()) throw new HttpError(400, 'not a file');
   const name = encodeURIComponent(path.basename(file));
@@ -115,7 +116,7 @@ const download = wrap(async (p, req, res, inline) => {
   }
   res.writeHead(200, { ...headers, 'Content-Length': st.size });
   await pipeline(fs.createReadStream(file), res);
-});
+}
 
 // One or more files/folders as a single .zip.
 const downloadZip = wrap(async (paths, res) => {
@@ -260,4 +261,4 @@ const upload = wrap(async (req, dir, name, overwrite) => {
   return { ok: true };
 });
 
-module.exports = { list, download, downloadZip, search, read, write, mkdir, rename, remove, move, upload };
+module.exports = { list, download, sendFile, downloadZip, search, read, write, mkdir, rename, remove, move, upload };

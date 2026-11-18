@@ -17,6 +17,7 @@ const NAV = [
   { to: '/power', label: 'Power', icon: 'M13 2 4 14h7l-1 8 9-12h-7z' },
   { to: '/updates', label: 'Updates', remote: true, icon: 'M12 3v12M7 10l5 5 5-5M5 21h14' },
   { to: '/docker', label: 'Docker', icon: 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8' },
+  { to: '/surveillance', label: 'Surveillance', icon: 'M3 7h13v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 10l5-3v8l-5-3M6 19h6' },
   { to: '/files', label: 'Files', remote: true, icon: 'M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z' },
   { to: '/terminal', label: 'Terminal', icon: 'M4 5h16v14H4zM8 10l3 2-3 2M13 15h3' },
 ];

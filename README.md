@@ -8,6 +8,7 @@ Control panel for the home lab, reachable from any of your devices over Tailscal
 - **Power**: the server's power draw over 24 hours, today's and tomorrow's electricity prices for your price area (from [hvakosterstrommen.no](https://www.hvakosterstrommen.no)), and what the server costs per day, this month and per month at its current draw, in NOK. The CPU and RAM are measured (Intel RAPL); the rest of the machine is a fixed estimate (`POWER_EXTRA_WATTS`).
 - **Docker**: containers grouped by Compose project with start/stop/restart for single containers or whole stacks, CPU and memory per container, live logs, and "Update" (pull newer images and recreate).
 - **Files**: browse, filter and search, preview images, video, audio and PDFs, edit text files, upload (drag and drop), download files or folders as .zip, select several to move, zip or delete.
+- **Surveillance**: one IP camera's live view in the browser (RTSP via ffmpeg, shown as MJPEG so it plays everywhere, phones included), with a button to take a photo or record video. Photos and recordings are saved on the server (`CAMERA_DIR`, default `~/Surveillance`) and listed on the page to view or download. Set `CAMERA_URL` to enable the tab.
 - **Terminal**: shells in the browser. With tmux on the server they are named sessions that keep running when you close the tab or lose the connection; switch between them with tabs. On phones a key bar adds Esc, Tab, Ctrl and arrows.
 - **Alerts**: a push via ntfy and/or Telegram when an app is down for 2 minutes, a container stops on its own, a disk passes 90% or security updates appear, and when things recover.
 
@@ -149,6 +150,10 @@ An app counts as "up" if it returns any HTTP response (including 401 or a redire
 | `TAILNET` | unset. Any variable can be used in `apps.json` as `${NAME}`, e.g. `"url": "https://media.${TAILNET}:8096"` with `TAILNET=your-tailnet.ts.net`, so host names stay out of the file (secrets like passwords and tokens are never filled in) |
 | `CHECK_TIMEOUT_MS` | `4000` |
 | `FILES_ROOT` | `/` (the file browser can't leave this folder) |
+| `CAMERA_URL` | unset (Surveillance tab hidden). An RTSP URL, e.g. `rtsp://admin:@192.168.1.62:10554/tcp/av0_0`. Needs `ffmpeg` on the server |
+| `CAMERA_NAME` | `Camera`. Shown on the Surveillance page |
+| `CAMERA_DIR` | `~/Surveillance`. Where photos and recordings are saved |
+| `FFMPEG` | `ffmpeg` |
 | `STATE_DIRECTORY` | `./.state` (set by systemd to `/var/lib/mkd-dashboard`; holds login sessions and 24 hours of history) |
 | `NTFY_URL`, `NTFY_TOKEN` | unset (ntfy alerts off) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | unset (Telegram alerts off) |

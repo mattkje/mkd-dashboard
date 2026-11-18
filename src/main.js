@@ -13,6 +13,7 @@ const router = createRouter({
     { path: '/power', component: () => import('./views/PowerView.vue'), meta: { title: 'Power' } },
     { path: '/updates', component: () => import('./views/UpdatesView.vue'), meta: { title: 'Updates' } },
     { path: '/docker', component: () => import('./views/DockerView.vue'), meta: { title: 'Docker' } },
+    { path: '/surveillance', component: () => import('./views/SurveillanceView.vue'), meta: { title: 'Surveillance' } },
     { path: '/files', component: () => import('./views/FilesView.vue'), meta: { title: 'Files' } },
     { path: '/terminal', component: () => import('./views/TerminalView.vue'), meta: { title: 'Terminal' } },
     // Another server's pages (see server/servers.js): the same views, talking to its agent.

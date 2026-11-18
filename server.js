@@ -24,6 +24,7 @@ const updates = require('./server/updates');
 const power = require('./server/power');
 const agent = require('./server/agent');
 const servers = require('./server/servers');
+const camera = require('./server/camera');
 const { HttpError, sendJson } = require('./server/http');
 
 const PORT = Number(process.env.PORT) || 8090;
@@ -94,6 +95,13 @@ const routes = [
   ['POST', /^\/api\/files\/upload$/, (req, res, params, url) => files.upload(
     req, param(url, 'path'), param(url, 'name'), param(url, 'overwrite') === '1',
   )],
+
+  ['GET', /^\/api\/camera$/, () => camera.status()],
+  ['GET', /^\/api\/camera\/live$/, (req, res) => camera.live(req, res)],
+  ['POST', /^\/api\/camera\/photo$/, () => camera.photo()],
+  ['POST', /^\/api\/camera\/record\/start$/, () => camera.startRecording()],
+  ['POST', /^\/api\/camera\/record\/stop$/, () => camera.stopRecording()],
+  ['GET', /^\/api\/camera\/captures\/([\w.-]+)$/, (req, res, [name], url) => camera.capture(name, req, res, url.searchParams.has('inline'))],
 
   ['GET', /^\/api\/terminal\/sessions$/, () => terminal.sessions()],
   ['POST', /^\/api\/terminal\/sessions\/([\w.-]+)\/kill$/, (req, res, [name]) => terminal.killSession(name)],
