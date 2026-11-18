@@ -97,9 +97,89 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 
 .brand-logo { width: 30px; height: 30px; }
 
-/* Which server's pages are shown; highlighted when it isn't this one. */
-.server-pick { flex: none; max-width: 180px; height: 34px; }
-.server-pick.remote { border-color: var(--accent); color: var(--accent); }
+/* Brand and server switcher, left of the tabs. */
+.brand-group { display: flex; flex: none; align-items: center; gap: 10px; min-width: 0; }
+.switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 200px;
+  height: 32px;
+  padding: 0 8px 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.switcher:hover, .switcher.open { border-color: var(--line-strong); background: var(--hover); }
+.switcher.remote { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 10%, var(--card)); color: var(--accent); }
+.switcher-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.switcher .chevron { flex: none; width: 14px; height: 14px; color: var(--muted); transition: transform 0.15s; }
+.switcher.open .chevron { transform: rotate(180deg); }
+.sdot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+.sdot.up { background: var(--up); }
+.sdot.down { background: var(--down); }
+
+/* Small menus that drop down from the header. */
+.menu-wrap { position: relative; flex: none; }
+.popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  z-index: 30;
+  min-width: 240px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--menu);
+  box-shadow: var(--shadow);
+  animation: pop 0.12s ease-out;
+}
+@keyframes pop { from { opacity: 0; transform: translateY(-4px); } }
+.servers-menu { left: 0; }
+.account-menu { right: 0; }
+.popover-label { margin: 4px 8px 6px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.popover-sep { height: 1px; margin: 6px 2px; background: var(--line); }
+.popover-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.popover-item:hover { background: var(--hover); }
+.popover-item[aria-checked="true"] { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.popover-item.danger { color: var(--down); }
+.popover-item > svg { flex: none; width: 16px; height: 16px; }
+.popover-item .check { color: var(--accent); }
+.item-text { display: grid; flex: 1; min-width: 0; }
+.item-text strong { overflow: hidden; font-size: 14px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+.item-text span { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.theme-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin: 0 2px 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.theme-pick button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.theme-pick button svg { width: 14px; height: 14px; }
+.theme-pick button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.icon-btn.open { border-color: var(--line-strong); color: var(--text); }
 
 .nav .tabs {
   display: flex;
@@ -127,6 +207,15 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 .nav .tabs a:hover { color: var(--text); }
 .nav .tabs a.router-link-exact-active { background: var(--hover); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .nav .tabs svg { width: 16px; height: 16px; stroke-width: 1.8; }
+/* Medium widths: icons, with the label only on the current page. */
+@media (max-width: 1060px) and (min-width: 561px) {
+  .nav { gap: 12px; }
+  .nav .tabs a { padding: 6px 10px; }
+  .nav .tabs a:not(.router-link-exact-active) span { display: none; }
+}
+@media (max-width: 760px) and (min-width: 561px) {
+  .brand-name { display: none; }
+}
 .nav .tabs .badge {
   min-width: 18px;
   padding: 0 5px;
@@ -508,7 +597,9 @@ h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 @media (max-width: 560px) {
   body { padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); }
   .nav { gap: 8px; margin-bottom: 20px; }
-  .brand { margin-right: auto; }
+  .brand-group { flex: 1; }
+  .brand { font-size: 20px; }
+  .switcher { max-width: 150px; }
   /* Tab bar fixed to the bottom of the screen, like a native app. */
   .nav .tabs {
     position: fixed;

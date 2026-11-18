@@ -219,4 +219,10 @@ function appHistory() {
   }));
 }
 
-module.exports = { start, expect, expectContainer, systemHistory, appHistory };
+// Whether an agent answered the last check (null until it has been checked).
+function serverUp(id) {
+  const s = serverState.get(id);
+  return s ? s.fails === 0 : null;
+}
+
+module.exports = { start, expect, expectContainer, systemHistory, appHistory, serverUp };

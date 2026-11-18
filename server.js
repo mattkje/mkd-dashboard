@@ -1,5 +1,6 @@
 // Home lab control panel. Serves the Vue frontend that `npm run build` writes to dist/,
 // and an API that is entirely behind the admin password login.
+const os = require('node:os');
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -71,7 +72,11 @@ const routes = [
     follow(url) ? system.followJournal(lines(url), res) : system.journal(lines(url))
   )],
   ['GET', /^\/api\/power$/, () => power.status()],
-  ['GET', /^\/api\/servers$/, () => servers.list()],
+  // This machine first (id ''), then the agents, with whether they answered the last check.
+  ['GET', /^\/api\/servers$/, () => [
+    { id: '', name: os.hostname(), self: true, up: true },
+    ...servers.list().map((s) => ({ ...s, up: monitor.serverUp(s.id) })),
+  ]],
   ['GET', /^\/api\/updates$/, () => updates.list()],
   ['POST', /^\/api\/updates\/check$/, () => updates.check()],
   ['POST', /^\/api\/updates\/refresh$/, () => updates.refresh()],

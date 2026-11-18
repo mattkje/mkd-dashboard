@@ -91,7 +91,7 @@ term.loadAddon(new WebLinksAddon((event, uri) => window.open(uri, '_blank', 'noo
 // Programs may only write the clipboard, never read it.
 term.loadAddon(new ClipboardAddon({
   readText: () => '',
-  writeText: (selection, data) => copyText(data),
+  writeText: (selection, data) => copyFromProgram(data),
 }));
 
 let ws = null;
@@ -99,6 +99,8 @@ let reconnectTimer;
 let flashTimer;
 let fitFrame = 0;
 let sentSize = '';
+// Text tmux copied that the browser would not take yet (Safari needs a click or key first).
+let pendingCopy = '';
 
 // Clipboard
 
@@ -131,8 +133,22 @@ function showFlash(message) {
   flashTimer = setTimeout(() => { flash.value = ''; }, 2200);
 }
 
+// tmux sends what you dragged over without a click behind it, which Safari refuses. Then keep the
+// text, and ⌘C / Ctrl+Shift+C / the copy button copies it, because a key or click is allowed to.
+async function copyFromProgram(value) {
+  if (!value) return;
+  pendingCopy = value;
+  if (await copyText(value, true)) {
+    pendingCopy = '';
+    showFlash(`Copied ${value.length.toLocaleString()} characters`);
+  } else {
+    showFlash(`Selected ${value.length.toLocaleString()} characters: press ${IS_MAC ? '⌘C' : 'Ctrl+Shift+C'} to copy`);
+  }
+}
+
 function copySelection() {
   if (term.hasSelection()) copyText(term.getSelection());
+  else if (pendingCopy) copyText(pendingCopy).then((ok) => { if (ok) pendingCopy = ''; });
   else showFlash(tmux.value ? 'Drag to select; it copies on release' : 'Select some text first');
 }
 
